@@ -72,15 +72,16 @@ class Slot(BaseModel):
     start: int
     end: int
     type: SlotType
-    dt: datetime = None
+    date_start: datetime = None
+    date_end: datetime = None
 
     @property
     def dt_start(self) -> datetime:
-        return self.dt + timedelta(minutes=self.start)
+        return self.date_start + timedelta(minutes=self.start)
 
     @property
     def dt_end(self) -> datetime:
-        return self.dt + timedelta(minutes=self.end)
+        return self.date_end + timedelta(minutes=self.end)
 
 
 class Day(BaseModel):
@@ -90,7 +91,7 @@ class Day(BaseModel):
 
     def update_dt(self):
         for slot in self.slots:
-            slot.dt = self.date
+            slot.date_start = slot.date_end = self.date
         return self
 
 
@@ -117,7 +118,21 @@ class YasnoBlackout:
                 if day_name in day_data:
                     day = self._DAY_TA.validate_python(day_data[day_name]).update_dt()
                     if day.status is DayStatus.SCHEDULE_APPLIES:
-                        groups[Group(group_id)].extend(day.slots)
+                        slots = day.slots
+                        if groups[Group(group_id)] and slots:
+                            last_slot = groups[Group(group_id)][-1]
+                            next_slot = slots[0]
+                            if last_slot.dt_end == next_slot.dt_start and last_slot.type == next_slot.type:
+                                joined_slot = Slot(
+                                    start=last_slot.start,
+                                    end=next_slot.end,
+                                    type=last_slot.type,
+                                    date_start=last_slot.date_start,
+                                    date_end=next_slot.date_end,
+                                )
+                                groups[Group(group_id)] = groups[Group(group_id)][:-1]
+                                slots = [joined_slot, *day.slots[1:]]
+                        groups[Group(group_id)].extend(slots)
 
         return dict(groups)
 
