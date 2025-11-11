@@ -1,6 +1,7 @@
 from flask import Flask, Response, render_template, request
 from flask_caching import Cache
 from icalendar import Calendar, Event
+from requests import RequestException
 
 from yasno import Group, SlotType, YasnoBlackout
 
@@ -19,8 +20,12 @@ yasno_blackout = YasnoBlackout()
 
 @app.route("/")
 @cache.cached(timeout=300)
-def index() -> str:
-    regions = yasno_blackout.regions()
+def index() -> str | Response:
+    try:
+        regions = yasno_blackout.regions()
+    except (IOError, KeyError, TypeError):
+        return Response("", 204)
+
     data = {
         region.value: {
             dso.name: {
@@ -34,8 +39,11 @@ def index() -> str:
 @app.route('/ical/<int:region>/<int:dso>/<string:group>.ics')
 @cache.cached(timeout=60)
 def ical(region: int, dso: int, group: str) -> Response:
-    planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
-    data = planned_outages[group]
+    try:
+        planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
+        data = planned_outages[group]
+    except (IOError, KeyError, TypeError):
+        return Response("", 404)
 
     cal = Calendar()
     cal.add("prodid", f"-//eSvitlo//Yasno Blackout Calendar//UK")
