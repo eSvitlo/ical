@@ -38,10 +38,15 @@ def ical(region: int, dso: int, group: str) -> Response:
     data = planned_outages[group]
 
     cal = Calendar()
+    cal.add("prodid", f"-//eSvitlo//Yasno Blackout Calendar//UK")
+    cal.add("version", "2.0")
+    cal.add("x-wr-calname", "Світло")
+    cal.add("x-wr-timezone", "Europe/Kyiv")
+
     for slot in data:
         if slot.type is SlotType.DEFINITE:
             event = Event()
-            event.add('summary', "Відсутність світла")
+            event.add("summary", "Відсутність світла")
             event.add("dtstart", slot.dt_start)
             event.add("dtend", slot.dt_end)
 
