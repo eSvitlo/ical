@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Календар відключень</title>
+<style>
+* {
+    box-sizing: border-box;
+}
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f5f5f5;
+    padding: 10px;
+}
+.container {
+    background-color: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    text-align: center;
+    width: 100%;
+    max-width: 600px;
+}
+select, input, .copy-btn {
+    width: 100%;
+    padding: 14px;
+    margin: 12px 0;
+    font-size: 18px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+.copy-btn {
+    cursor: pointer;
+    background-color: #007bff;
+    color: white;
+    border: none;
+}
+.copy-btn:active {
+    background-color: #0056b3;
+}
+label {
+    display: block;
+    margin-top: 12px;
+    font-weight: bold;
+    font-size: 16px;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <h2>Календар відключень</h2>
+
+    <label for="region">Місто:</label>
+    <select id="region">
+        <option value="">--Місто--</option>
+        {% for region in data.keys() %}
+        <option value="{{ region }}">{{ region }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="dso">ОСР:</label>
+    <select id="dso" disabled></select>
+
+    <label for="group">Група:</label>
+    <select id="group" disabled></select>
+
+    <label for="link">Посилання:</label>
+    <input type="text" id="link" readonly disabled>
+    <button class="copy-btn" onclick="copyLink()">Скопіювати</button>
+</div>
+
+<script>
+const data = {{ data | tojson }};
+const regionSelect = document.getElementById('region');
+const dsoSelect = document.getElementById('dso');
+const groupSelect = document.getElementById('group');
+const linkInput = document.getElementById('link');
+
+regionSelect.addEventListener('change', () => {
+    const region = regionSelect.value;
+    dsoSelect.innerHTML = '<option value="">--ОСР--</option>';
+    groupSelect.innerHTML = '<option value="">--Група--</option>';
+    linkInput.value = '';
+    linkInput.disabled = true;
+
+    if(region) {
+        Object.keys(data[region]).forEach(dso => {
+            const option = document.createElement('option');
+            option.value = dso;
+            option.textContent = dso;
+            dsoSelect.appendChild(option);
+        });
+        dsoSelect.disabled = false;
+    } else {
+        dsoSelect.disabled = true;
+        groupSelect.disabled = true;
+    }
+});
+
+dsoSelect.addEventListener('change', () => {
+    const region = regionSelect.value;
+    const dso = dsoSelect.value;
+    groupSelect.innerHTML = '<option value="">--Група--</option>';
+    linkInput.value = '';
+    linkInput.disabled = true;
+
+    if(dso) {
+        Object.keys(data[region][dso]).forEach(group => {
+            const option = document.createElement('option');
+            option.value = group;
+            option.textContent = group;
+            groupSelect.appendChild(option);
+        });
+        groupSelect.disabled = false;
+    } else {
+        groupSelect.disabled = true;
+    }
+});
+
+groupSelect.addEventListener('change', () => {
+    const region = regionSelect.value;
+    const dso = dsoSelect.value;
+    const group = groupSelect.value;
+    if(group) {
+        linkInput.value = data[region][dso][group];
+        linkInput.disabled = false;
+    } else {
+        linkInput.value = '';
+        linkInput.disabled = true;
+    }
+});
+
+function copyLink() {
+    linkInput.select();
+    linkInput.setSelectionRange(0, 99999);
+    navigator.clipboard.writeText(linkInput.value);
+}
+</script>
+</body>
+</html>
