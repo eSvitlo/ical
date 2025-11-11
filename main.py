@@ -1,19 +1,24 @@
 from flask import Flask, Response, render_template, request
-from google.appengine.api import wrap_wsgi_app
+from flask_caching import Cache
 from icalendar import Calendar, Event
 
-from cache import cache_route
 from yasno import Group, SlotType, YasnoBlackout
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
-app.wsgi_app = wrap_wsgi_app(app.wsgi_app)
+
+
+config = {
+    "CACHE_TYPE": "SimpleCache",
+}
+app.config.from_mapping(config)
+cache = Cache(app)
 
 yasno_blackout = YasnoBlackout()
 
 
-@cache_route(timeout=3600)
 @app.route("/")
+@cache.cached(timeout=300)
 def index() -> str:
     regions = yasno_blackout.regions()
     data = {
@@ -26,8 +31,8 @@ def index() -> str:
     return render_template("index.html", data=data)
 
 
-@cache_route()
 @app.route('/ical/<int:region>/<int:dso>/<string:group>.ics')
+@cache.cached(timeout=60)
 def ical(region: int, dso: int, group: str) -> Response:
     planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
     data = planned_outages[group]
