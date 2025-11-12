@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 
 import requests
+from flask import url_for
 from pydantic import BaseModel, TypeAdapter
 
 
@@ -26,8 +27,8 @@ class Dso(BaseModel):
     name: str
     region: "Region" = None
 
-    def link(self, base: str, group: Group) -> str:
-        return f"{base}yasno/{self.region.id}/{self.id}/{group}.ics"
+    def link(self, group: Group) -> str:
+        return url_for("yasno", region=self.region.id, dso=self.id, group=group)
 
 
 class Region(BaseModel):

@@ -128,7 +128,7 @@ groupSelect.addEventListener('change', () => {
     const dso = dsoSelect.value;
     const group = groupSelect.value;
     if(group) {
-        linkInput.value = data[region][dso][group];
+        linkInput.value = new URL(data[region][dso][group], location.origin);
         linkInput.disabled = false;
     } else {
         linkInput.value = '';

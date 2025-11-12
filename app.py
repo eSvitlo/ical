@@ -1,4 +1,5 @@
 from flask import Flask, Response, render_template, request, url_for
+from flask import Flask, Response, render_template, url_for
 from flask_caching import Cache
 from icalendar import Calendar, Event
 
@@ -37,7 +38,7 @@ def index() -> str | Response:
     data = {
         region.value: {
             dso.name: {
-                group.value: dso.link(request.host_url, group) for group in Group
+                group.value: dso.link(group) for group in Group
             } for dso in region.dsos
         } for region in regions
     }
