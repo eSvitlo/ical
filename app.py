@@ -11,6 +11,11 @@ app.add_url_rule(
     endpoint="favicon",
     redirect_to=lambda _: url_for("static", filename="favicon.ico"),
 )
+app.add_url_rule(
+    "/healthz",
+    endpoint="health_check",
+    view_func=lambda: "",
+)
 
 config = {
     "CACHE_TYPE": "SimpleCache",
