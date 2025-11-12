@@ -9,7 +9,7 @@ app.json.ensure_ascii = False
 app.add_url_rule(
     "/favicon.ico",
     endpoint="favicon",
-    redirect_to=url_for("static", filename="favicon.ico"),
+    redirect_to=lambda _: url_for("static", filename="favicon.ico"),
 )
 
 config = {
