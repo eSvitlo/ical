@@ -1,4 +1,4 @@
-from flask import Flask, Response, render_template, request
+from flask import Flask, Response, render_template, request, url_for
 from flask_caching import Cache
 from icalendar import Calendar, Event
 
@@ -6,7 +6,11 @@ from providers.yasno import Group, SlotType, YasnoBlackout
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
-
+app.add_url_rule(
+    "/favicon.ico",
+    endpoint="favicon",
+    redirect_to=url_for("static", filename="favicon.ico"),
+)
 
 config = {
     "CACHE_TYPE": "SimpleCache",
