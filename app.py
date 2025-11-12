@@ -1,5 +1,8 @@
-from flask import Flask, Response, render_template, request, url_for
+import os
+
+import requests
 from flask import Flask, Response, render_template, url_for
+from flask_apscheduler import APScheduler
 from flask_caching import Cache
 from icalendar import Calendar, Event
 
@@ -23,6 +26,10 @@ config = {
 }
 app.config.from_mapping(config)
 cache = Cache(app)
+
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
 
 yasno_blackout = YasnoBlackout()
 
@@ -70,6 +77,12 @@ def yasno(region: int, dso: int, group: str) -> Response:
             cal.add_component(event)
 
     return Response(cal.to_ical(), mimetype="text/calendar")
+
+
+if url := os.getenv("PUBLIC_HEALTHCHECK_ENDPOINT"):
+    @scheduler.task("interval", minutes=1)
+    def spin_up():
+        requests.get(url)
 
 
 if __name__ == "__main__":
