@@ -21,18 +21,13 @@ class Group(StrEnum):
     G6_2 = "6.2"
 
 
-class Link(BaseModel):
-    group: Group
-    url: str
-
-
 class Dso(BaseModel):
     id: int
     name: str
     region: "Region" = None
 
     def link(self, base: str, group: Group) -> str:
-        return f"{base}ical/{self.region.id}/{self.id}/{group}.ics"
+        return f"{base}yasno/{self.region.id}/{self.id}/{group}.ics"
 
 
 class Region(BaseModel):

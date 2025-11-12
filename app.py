@@ -1,9 +1,8 @@
 from flask import Flask, Response, render_template, request
 from flask_caching import Cache
 from icalendar import Calendar, Event
-from requests import RequestException
 
-from yasno import Group, SlotType, YasnoBlackout
+from providers.yasno import Group, SlotType, YasnoBlackout
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
@@ -36,9 +35,9 @@ def index() -> str | Response:
     return render_template("index.html", data=data)
 
 
-@app.route('/ical/<int:region>/<int:dso>/<string:group>.ics')
+@app.route('/yasno/<int:region>/<int:dso>/<string:group>.ics')
 @cache.cached(timeout=60)
-def ical(region: int, dso: int, group: str) -> Response:
+def yasno(region: int, dso: int, group: str) -> Response:
     try:
         planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
         data = planned_outages[group]
