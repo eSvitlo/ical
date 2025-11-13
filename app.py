@@ -66,6 +66,8 @@ def yasno(region: int, dso: int, group: str) -> Response:
     cal.add("version", "2.0")
     cal.add("x-wr-calname", f"Світло (група {group})")
     cal.add("x-wr-timezone", "Europe/Kyiv")
+    cal.add("x-published-ttl", "PT1H")
+    cal.add("refresh-interval;value=duration", "PT1H")
 
     for slot in data:
         if slot.type is SlotType.DEFINITE:
