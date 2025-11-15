@@ -6,6 +6,7 @@ from flask_apscheduler import APScheduler
 from flask_caching import Cache
 from icalendar import Calendar, Event
 
+from gcal import get_gcals
 from providers.yasno import Group, SlotType, YasnoBlackout
 
 app = Flask(__name__)
@@ -49,7 +50,8 @@ def index() -> str | Response:
             } for dso in region.dsos
         } for region in regions
     }
-    return render_template("index.html", data=data)
+    gcals = get_gcals()
+    return render_template("index.html", data=data, gcals=gcals)
 
 
 @app.route('/yasno/<int:region>/<int:dso>/<string:group>.ics')

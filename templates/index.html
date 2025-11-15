@@ -73,10 +73,16 @@ label {
     <label for="link">Посилання:</label>
     <input type="text" id="link" readonly disabled>
     <button class="copy-btn" onclick="copyLink()">Скопіювати</button>
+
+    {% if gcals %}
+    <div>або</div>
+    <button class="copy-btn" onclick="gcal()">Додати у Google Calendar</button>
+    {% endif %}
 </div>
 
 <script>
 const data = {{ data | tojson }};
+const gcals = {{ gcals | tojson }};
 const regionSelect = document.getElementById('region');
 const dsoSelect = document.getElementById('dso');
 const groupSelect = document.getElementById('group');
@@ -140,6 +146,18 @@ function copyLink() {
     linkInput.select();
     linkInput.setSelectionRange(0, 99999);
     navigator.clipboard.writeText(linkInput.value);
+}
+
+function gcal() {
+    const region = regionSelect.value;
+    const dso = dsoSelect.value;
+    const group = groupSelect.value;
+    const cid = gcals[data[region][dso][group]];
+    if (cid) {
+        const url = new URL('https://calendar.google.com/calendar');
+        url.searchParams.set('cid', cid);
+        window.open(url, '_blank');
+    }
 }
 </script>
 </body>
