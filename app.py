@@ -36,7 +36,7 @@ yasno_blackout = YasnoBlackout()
 
 
 @app.route("/")
-@cache.cached(timeout=300)
+@cache.cached(timeout=3600)
 def index() -> str | Response:
     try:
         regions = yasno_blackout.regions()
