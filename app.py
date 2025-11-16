@@ -35,11 +35,16 @@ scheduler.start()
 yasno_blackout = YasnoBlackout()
 
 
+def response_filter(response: Response) -> bool:
+    return response.status_code == 200
+
+
 @app.route("/")
-@cache.cached(timeout=3600)
-def index() -> str | Response:
+@cache.cached(timeout=3600, response_filter=response_filter)
+def index() -> Response:
     try:
         regions = yasno_blackout.regions()
+        gcals = get_gcals()
     except (IOError, KeyError, TypeError):
         return Response("", 204)
 
@@ -50,12 +55,11 @@ def index() -> str | Response:
             } for dso in region.dsos
         } for region in regions
     }
-    gcals = get_gcals()
-    return render_template("index.html", data=data, gcals=gcals)
+    return Response(render_template("index.html", data=data, gcals=gcals))
 
 
 @app.route('/yasno/<int:region>/<int:dso>/<string:group>.ics')
-@cache.cached(timeout=60)
+@cache.cached(timeout=60, response_filter=response_filter)
 def yasno(region: int, dso: int, group: str) -> Response:
     try:
         planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
