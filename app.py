@@ -42,7 +42,7 @@ def response_filter(response: Response) -> bool:
 
 
 @app.route("/")
-@cache.cached(timeout=3600, response_filter=response_filter)
+@cache.cached(timeout=3600, key_prefix="index", response_filter=response_filter)
 def index() -> Response:
     try:
         regions = yasno_blackout.regions()
