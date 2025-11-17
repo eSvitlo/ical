@@ -23,8 +23,9 @@ app.add_url_rule(
 )
 
 config = {
-    "CACHE_TYPE": "FileSystemCache",
+    "CACHE_TYPE": "RedisCache" if os.getenv("REDIS_URL") else "FileSystemCache",
     "CACHE_DIR": "/tmp",
+    "CACHE_REDIS_URL": os.getenv("REDIS_URL"),
 }
 app.config.from_mapping(config)
 cache = Cache(app)
