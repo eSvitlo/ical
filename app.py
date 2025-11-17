@@ -23,7 +23,8 @@ app.add_url_rule(
 )
 
 config = {
-    "CACHE_TYPE": "SimpleCache",
+    "CACHE_TYPE": "FileSystemCache",
+    "CACHE_DIR": "/tmp",
 }
 app.config.from_mapping(config)
 cache = Cache(app)
