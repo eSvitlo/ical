@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 
 import requests
 from flask import Flask, Response, render_template, url_for
@@ -87,6 +88,12 @@ def yasno(region: int, dso: int, group: str) -> Response:
             cal.add_component(event)
 
     return Response(cal.to_ical(), mimetype="text/calendar")
+
+
+@scheduler.task("interval", minutes=1, next_run_time=datetime.now())
+def refresh_index_cache():
+    with app.test_request_context():
+        index()
 
 
 if url := os.getenv("PUBLIC_HEALTHCHECK_ENDPOINT"):
