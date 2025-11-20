@@ -69,9 +69,9 @@ class Slot(BaseModel):
     start: int
     end: int
     type: SlotType = SlotType.DEFINITE
-    title: str = "Відсутність світла"
     date_start: datetime = None
     date_end: datetime = None
+    day_status: DayStatus = None
 
     @property
     def dt_start(self) -> datetime:
@@ -81,16 +81,32 @@ class Slot(BaseModel):
     def dt_end(self) -> datetime:
         return self.date_end + timedelta(minutes=self.end)
 
+    @property
+    def title(self) -> str:
+        match self.day_status:
+            case DayStatus.SCHEDULE_APPLIES:
+                return "Заплановане відключення"
+            case DayStatus.EMERGENCY_SHUTDOWNS:
+                return "🚨 Екстрені відключення"
+            case DayStatus.WAITING_FOR_SCHEDULE:
+                return "Імовірне відключення"
+
 
 class Day(BaseModel):
     slots: list[Slot]
     date: datetime
     status: DayStatus | None = None
 
-    def update_dt(self):
-        for slot in self.slots:
-            slot.date_start = slot.date_end = self.date
-        return self
+    def get_slots(self) -> list[Slot]:
+        match self.status:
+            case DayStatus.SCHEDULE_APPLIES:
+                for slot in self.slots:
+                    slot.date_start = slot.date_end = self.date
+                    slot.day_status = self.status
+            case DayStatus.EMERGENCY_SHUTDOWNS:
+                slot = Slot(start=0, end=1440, date_start=self.date, date_end=self.date, day_status=self.status)
+                self.slots = [slot]
+        return [slot for slot in self.slots if slot.type == SlotType.DEFINITE]
 
 
 
@@ -114,28 +130,25 @@ class YasnoBlackout:
         for group_id, day_data in result.items():
             for day_name in DayName:
                 if day_name in day_data:
-                    day = self._DAY_TA.validate_python(day_data[day_name]).update_dt()
-                    if day.status is DayStatus.SCHEDULE_APPLIES:
-                        slots = day.slots
-                        if groups[Group(group_id)] and slots:
-                            last_slot = groups[Group(group_id)][-1]
-                            next_slot = slots[0]
-                            if last_slot.dt_end == next_slot.dt_start and last_slot.type == next_slot.type:
-                                joined_slot = Slot(
-                                    start=last_slot.start,
-                                    end=next_slot.end,
-                                    type=last_slot.type,
-                                    date_start=last_slot.date_start,
-                                    date_end=next_slot.date_end,
-                                )
-                                groups[Group(group_id)] = groups[Group(group_id)][:-1]
-                                slots = [joined_slot, *day.slots[1:]]
-                        groups[Group(group_id)].extend(slots)
-                    elif day.status is DayStatus.EMERGENCY_SHUTDOWNS:
-                        if day.date < datetime.now(tz=day.date.tzinfo):
-                            slot = Slot(start=0, end=1440, title="🚨 Екстрені відключення")
-                            day = Day(slots=[slot], date=day.date).update_dt()
-                            groups[Group(group_id)].extend(day.slots)
+                    day_slots = self._DAY_TA.validate_python(day_data[day_name]).get_slots()
+                    slots = day_slots[:]
+                    if groups[Group(group_id)] and slots:
+                        last_slot = groups[Group(group_id)][-1]
+                        next_slot = slots[0]
+                        if (
+                            last_slot.dt_end == next_slot.dt_start and
+                            last_slot.type == next_slot.type and
+                            last_slot.day_status == next_slot.day_status
+                        ):
+                            joined_slot = Slot(
+                                start=last_slot.start,
+                                end=next_slot.end,
+                                date_start=last_slot.date_start,
+                                date_end=next_slot.date_end,
+                            )
+                            groups[Group(group_id)] = groups[Group(group_id)][:-1]
+                            slots = [joined_slot, *day_slots[1:]]
+                    groups[Group(group_id)].extend(slots)
 
         return dict(groups)
 

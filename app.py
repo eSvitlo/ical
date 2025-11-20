@@ -79,13 +79,12 @@ def yasno(region: int, dso: int, group: str) -> Response:
     cal.add("refresh-interval;value=duration", "PT1H")
 
     for slot in data:
-        if slot.type is SlotType.DEFINITE:
-            event = Event()
-            event.add("summary", slot.title)
-            event.add("dtstart", slot.dt_start)
-            event.add("dtend", slot.dt_end)
+        event = Event()
+        event.add("summary", slot.title)
+        event.add("dtstart", slot.dt_start)
+        event.add("dtend", slot.dt_end)
 
-            cal.add_component(event)
+        cal.add_component(event)
 
     return Response(cal.to_ical(), mimetype="text/calendar")
 
