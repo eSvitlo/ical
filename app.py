@@ -48,7 +48,8 @@ def index() -> Response:
     try:
         regions = yasno_blackout.regions()
         gcals = get_gcals()
-    except (IOError, KeyError, TypeError):
+    except (IOError, KeyError, TypeError) as e:
+        app.logger.exception(e)
         return Response("", 204)
 
     data = {
@@ -67,7 +68,8 @@ def yasno(region: int, dso: int, group: str) -> Response:
     try:
         planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
         data = planned_outages[group]
-    except (IOError, KeyError, TypeError):
+    except (IOError, KeyError, TypeError) as e:
+        app.logger.exception(e)
         return Response("", 404)
 
     cal = Calendar()
