@@ -81,7 +81,7 @@ def yasno(region: int, dso: int, group: str) -> Response:
     for slot in data:
         if slot.type is SlotType.DEFINITE:
             event = Event()
-            event.add("summary", "Відсутність світла")
+            event.add("summary", slot.title)
             event.add("dtstart", slot.dt_start)
             event.add("dtend", slot.dt_end)
 

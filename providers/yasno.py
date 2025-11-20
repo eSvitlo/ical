@@ -62,12 +62,14 @@ class DayName(StrEnum):
 class DayStatus(StrEnum):
     SCHEDULE_APPLIES = "ScheduleApplies"
     WAITING_FOR_SCHEDULE = "WaitingForSchedule"
+    EMERGENCY_SHUTDOWNS = "EmergencyShutdowns"
 
 
 class Slot(BaseModel):
     start: int
     end: int
-    type: SlotType
+    type: SlotType = SlotType.DEFINITE
+    title: str = "Відсутність світла"
     date_start: datetime = None
     date_end: datetime = None
 
@@ -83,7 +85,7 @@ class Slot(BaseModel):
 class Day(BaseModel):
     slots: list[Slot]
     date: datetime
-    status: DayStatus
+    status: DayStatus | None = None
 
     def update_dt(self):
         for slot in self.slots:
@@ -129,6 +131,11 @@ class YasnoBlackout:
                                 groups[Group(group_id)] = groups[Group(group_id)][:-1]
                                 slots = [joined_slot, *day.slots[1:]]
                         groups[Group(group_id)].extend(slots)
+                    elif day.status is DayStatus.EMERGENCY_SHUTDOWNS:
+                        if day.date < datetime.now(tz=day.date.tzinfo):
+                            slot = Slot(start=0, end=1440, title="🚨 Екстрені відключення")
+                            day = Day(slots=[slot], date=day.date).update_dt()
+                            groups[Group(group_id)].extend(day.slots)
 
         return dict(groups)
 
