@@ -145,6 +145,7 @@ class YasnoBlackout:
                                 end=next_slot.end,
                                 date_start=last_slot.date_start,
                                 date_end=next_slot.date_end,
+                                day_status=last_slot.day_status,
                             )
                             groups[Group(group_id)] = groups[Group(group_id)][:-1]
                             slots = [joined_slot, *day_slots[1:]]
