@@ -106,7 +106,7 @@ class Day(BaseModel):
             case DayStatus.EMERGENCY_SHUTDOWNS:
                 slot = Slot(start=0, end=1440, date_start=self.date, date_end=self.date, day_status=self.status)
                 self.slots = [slot]
-        return [slot for slot in self.slots if slot.type == SlotType.DEFINITE]
+        return [slot for slot in self.slots if slot.type == SlotType.DEFINITE and slot.day_status != DayStatus.WAITING_FOR_SCHEDULE]
 
 
 
