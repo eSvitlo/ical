@@ -99,7 +99,7 @@ class Day(BaseModel):
 
     def get_slots(self) -> list[Slot]:
         match self.status:
-            case DayStatus.SCHEDULE_APPLIES:
+            case DayStatus.SCHEDULE_APPLIES | DayStatus.WAITING_FOR_SCHEDULE:
                 for slot in self.slots:
                     slot.date_start = slot.date_end = self.date
                     slot.day_status = self.status
