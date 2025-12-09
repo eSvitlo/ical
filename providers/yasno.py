@@ -85,11 +85,11 @@ class Slot(BaseModel):
     def title(self) -> str:
         match self.day_status:
             case DayStatus.SCHEDULE_APPLIES:
-                return "Заплановане відключення"
+                return "Заплановане відключення світла"
             case DayStatus.EMERGENCY_SHUTDOWNS:
-                return "🚨 Екстрені відключення"
+                return "🚨 Екстрені відключення світла"
             case DayStatus.WAITING_FOR_SCHEDULE:
-                return "Імовірне відключення"
+                return "Імовірне відключення світла"
 
 
 class Day(BaseModel):
