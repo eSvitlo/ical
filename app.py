@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+from typing import Protocol
 
 import requests
 from flask import Flask, Response, render_template, url_for
@@ -8,7 +9,9 @@ from flask_caching import Cache
 from icalendar import Calendar, Event
 
 from gcal import get_gcals
-from providers.yasno import Group, SlotType, YasnoBlackout
+from providers.dtek import DtekNetwork, DtekShutdowns
+from providers.yasno import YasnoBlackout
+from providers import Group
 
 app = Flask(__name__)
 app.json.ensure_ascii = False
@@ -36,6 +39,13 @@ scheduler.init_app(app)
 scheduler.start()
 
 yasno_blackout = YasnoBlackout()
+dtek_shutdowns = DtekShutdowns()
+
+
+class Slots(Protocol):
+    title: str
+    dt_start: datetime
+    dt_end: datetime
 
 
 def response_filter(response: Response) -> bool:
@@ -67,11 +77,28 @@ def index() -> Response:
 def yasno(region: int, dso: int, group: str) -> Response:
     try:
         planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
-        data = planned_outages[group]
+        slots = planned_outages[group]
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
         return Response("", 404)
 
+    return create_calendar(group, slots)
+
+
+@app.route('/dtek/<string:network>/<string:group>.ics')
+@cache.cached(timeout=60, response_filter=response_filter)
+def dtek(network: DtekNetwork, group: str) -> Response:
+    try:
+        planned_outages = dtek_shutdowns.planned_outages(network=network)
+        slots = planned_outages[group]
+    except (IOError, KeyError, TypeError) as e:
+        app.logger.exception(e)
+        return Response("", 404)
+
+    return create_calendar(group, slots)
+
+
+def create_calendar(group: str, slots: list[Slots]) -> Response:
     cal = Calendar()
     cal.add("prodid", f"-//eSvitlo//Yasno Blackout Calendar//UK")
     cal.add("version", "2.0")
@@ -80,7 +107,7 @@ def yasno(region: int, dso: int, group: str) -> Response:
     cal.add("x-published-ttl", "PT1H")
     cal.add("refresh-interval;value=duration", "PT1H")
 
-    for slot in data:
+    for slot in slots:
         event = Event()
         event.add("summary", slot.title)
         event.add("dtstart", slot.dt_start)
