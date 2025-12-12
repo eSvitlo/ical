@@ -1,7 +1,7 @@
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
 
 from playwright.sync_api import sync_playwright
@@ -102,7 +102,7 @@ class DtekShutdownBase:
 
         slots = {}
         for date, groups in data.items():
-            dt = datetime.fromtimestamp(int(date))
+            dt = datetime.fromtimestamp(int(date), tz=timezone.utc)
             for g, days in groups.items():
                 group = GROUP_MAP[g]
                 slots[group] = self._join_slots(slots.get(group, []) + self._parse_group(dt, days))
