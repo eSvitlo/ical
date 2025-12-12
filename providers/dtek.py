@@ -97,6 +97,8 @@ class DtekShutdownBase:
 
     def planned_outages(self):
         data = self._get()
+        if not data:
+            return {}
 
         slots = {}
         for date, groups in data.items():
