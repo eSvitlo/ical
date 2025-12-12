@@ -122,6 +122,10 @@ class KemDtekShutdown(DtekShutdownBase):
     URL = "https://www.dtek-kem.com.ua/ua/shutdowns"
 
 
+class KremDtekShutdown(DtekShutdownBase):
+    URL = "https://www.dtek-krem.com.ua/ua/shutdowns"
+
+
 class OemDtekShutdown(DtekShutdownBase):
     URL = "https://www.dtek-oem.com.ua/ua/shutdowns"
 
@@ -130,6 +134,7 @@ class DtekNetwork(StrEnum):
     DEM = auto()
     DNEM = auto()
     KEM = auto()
+    KREM = auto()
     OEM = auto()
 
 
@@ -139,6 +144,7 @@ class DtekShutdowns:
             DtekNetwork.DEM: DemDtekShutdown(),
             DtekNetwork.DNEM: DnemDtekShutdown(),
             DtekNetwork.KEM: KemDtekShutdown(),
+            DtekNetwork.KREM: KremDtekShutdown(),
             DtekNetwork.OEM: OemDtekShutdown(),
         }
 
