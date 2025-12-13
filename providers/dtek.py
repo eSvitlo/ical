@@ -44,10 +44,11 @@ class DtekShutdownBase:
     URL: str
     PATTERN: re.Pattern = re.compile(r"DisconSchedule\.fact\s*=\s*(\{.*})")
 
+    def __init__(self, dtek):
+        self.dtek = dtek
+
     def _get(self):
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True)
-            page = browser.new_page()
+        with self.dtek.context.new_page() as page:
             page.goto(self.URL)
             html = page.content()
 
@@ -142,14 +143,62 @@ class DtekNetwork(StrEnum):
 class DtekShutdowns:
     def __init__(self, cache: Cache | None = None):
         self.map = {
-            DtekNetwork.DEM: DemDtekShutdown(),
-            DtekNetwork.DNEM: DnemDtekShutdown(),
-            DtekNetwork.KEM: KemDtekShutdown(),
-            DtekNetwork.KREM: KremDtekShutdown(),
-            DtekNetwork.OEM: OemDtekShutdown(),
+            DtekNetwork.DEM: DemDtekShutdown(self),
+            DtekNetwork.DNEM: DnemDtekShutdown(self),
+            DtekNetwork.KEM: KemDtekShutdown(self),
+            DtekNetwork.KREM: KremDtekShutdown(self),
+            DtekNetwork.OEM: OemDtekShutdown(self),
         }
         if cache:
             self.planned_outages = cache.memoize(timeout=300)(self.planned_outages)
+        self._pw = None
+        self._browser = None
+        self._context = None
+
+    @property
+    def context(self):
+        if self._context:
+            return self._context
+
+        self._pw = sync_playwright()
+        pw = self._pw.__enter__()
+        self._browser = pw.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-gpu",
+                "--disable-extensions",
+                "--disable-background-networking",
+                "--disable-sync",
+                "--disable-translate",
+                "--disable-features=site-per-process",
+            ]
+        )
+        self._context = self._browser.new_context()
+
+        def block(route):
+            if route.request.resource_type in {"font", "image", "media", "stylesheet"}:
+                route.abort()
+            else:
+                route.continue_()
+
+        self._context.route("**/*", block)
+
+        return self._context
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._context:
+            self._context.close()
+            self._browser.close()
+            self._pw.__exit__()
+
+            self._context = None
+            self._browser = None
+            self._pw = None
 
     def planned_outages(self, network: DtekNetwork):
         network = self.map.get(network)
@@ -159,5 +208,5 @@ class DtekShutdowns:
 if __name__ == "__main__":
     from pprint import pprint
 
-    kyiv = KemDtekShutdown()
-    pprint(kyiv.planned_outages())
+    with DtekShutdowns() as dtek:
+        pprint(dtek.planned_outages(DtekNetwork.KEM))
