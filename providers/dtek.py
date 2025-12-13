@@ -173,6 +173,15 @@ class DtekShutdowns:
                 "--disable-sync",
                 "--disable-translate",
                 "--disable-features=site-per-process",
+                "--single-process",
+                "--no-zygote",
+                "--disable-software-rasterizer",
+                "--disable-default-apps",
+                "--disable-component-update",
+                "--disable-renderer-backgrounding",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--mute-audio",
             ]
         )
         self._context = self._browser.new_context()
