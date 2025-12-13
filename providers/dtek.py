@@ -150,7 +150,7 @@ class DtekShutdowns:
             DtekNetwork.OEM: OemDtekShutdown(self),
         }
         if cache:
-            self.planned_outages = cache.memoize(timeout=300)(self.planned_outages)
+            self.planned_outages = cache.memoize(timeout=300, args_to_ignore=["self"])(self.planned_outages)
         self._pw = None
         self._browser = None
         self._context = None
