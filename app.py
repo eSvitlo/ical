@@ -39,7 +39,7 @@ scheduler.init_app(app)
 scheduler.start()
 
 yasno_blackout = YasnoBlackout()
-dtek_shutdowns = DtekShutdowns()
+dtek_shutdowns = DtekShutdowns(cache)
 
 
 class Slots(Protocol):

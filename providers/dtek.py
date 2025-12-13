@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
 
+from flask_caching import Cache
 from playwright.sync_api import sync_playwright
 
 from providers import Group
@@ -139,7 +140,7 @@ class DtekNetwork(StrEnum):
 
 
 class DtekShutdowns:
-    def __init__(self):
+    def __init__(self, cache: Cache | None = None):
         self.map = {
             DtekNetwork.DEM: DemDtekShutdown(),
             DtekNetwork.DNEM: DnemDtekShutdown(),
@@ -147,6 +148,8 @@ class DtekShutdowns:
             DtekNetwork.KREM: KremDtekShutdown(),
             DtekNetwork.OEM: OemDtekShutdown(),
         }
+        if cache:
+            self.planned_outages = cache.memoize(timeout=300)(self.planned_outages)
 
     def planned_outages(self, network: DtekNetwork):
         network = self.map.get(network)
@@ -154,5 +157,7 @@ class DtekShutdowns:
 
 
 if __name__ == "__main__":
+    from pprint import pprint
+
     kyiv = KemDtekShutdown()
-    print(kyiv.planned_outages())
+    pprint(kyiv.planned_outages())
