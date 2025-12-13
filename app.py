@@ -1,4 +1,5 @@
 import os
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Protocol
 
@@ -122,6 +123,13 @@ def create_calendar(name: str, group: str, slots: list[Slots]) -> Response:
 def refresh_index_cache():
     with app.test_request_context():
         index()
+
+
+@scheduler.task("interval", minutes=1, next_run_time=datetime.now())
+def refresh_dtek_cache():
+    with app.test_request_context():
+        with ThreadPoolExecutor(max_workers=len(dtek_shutdowns.map)) as executor:
+            executor.map(dtek_shutdowns.planned_outages, dtek_shutdowns.map)
 
 
 if url := os.getenv("PUBLIC_HEALTHCHECK_ENDPOINT"):
