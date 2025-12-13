@@ -82,7 +82,7 @@ def yasno(region: int, dso: int, group: str) -> Response:
         app.logger.exception(e)
         return Response("", 404)
 
-    return create_calendar(group, slots)
+    return create_calendar("Yasno Blackout", group, slots)
 
 
 @app.route('/dtek/<string:network>/<string:group>.ics')
@@ -95,12 +95,12 @@ def dtek(network: DtekNetwork, group: str) -> Response:
         app.logger.exception(e)
         return Response("", 404)
 
-    return create_calendar(group, slots)
+    return create_calendar("DTEK Shutdowns", group, slots)
 
 
-def create_calendar(group: str, slots: list[Slots]) -> Response:
+def create_calendar(name: str, group: str, slots: list[Slots]) -> Response:
     cal = Calendar()
-    cal.add("prodid", f"-//eSvitlo//Yasno Blackout Calendar//UK")
+    cal.add("prodid", f"-//eSvitlo//{name} Calendar//UK")
     cal.add("version", "2.0")
     cal.add("x-wr-calname", f"Світло (група {group})")
     cal.add("x-wr-timezone", "Europe/Kyiv")
