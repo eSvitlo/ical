@@ -10,4 +10,4 @@ RUN uv sync --no-dev
 RUN uv run playwright install chromium
 RUN uv run playwright install-deps chromium && rm -rf /var/lib/apt/lists/*
 
-CMD ["uv", "run", "gunicorn", "app:app", "--logger-class", "logger.GunicornLogger"]
+CMD ["uv", "run", "gunicorn", "app:app", "--logger-class", "logger.GunicornLogger", "--access-logfile", "-", "--error-logfile", "-"]
