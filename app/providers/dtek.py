@@ -1,12 +1,14 @@
 import asyncio
 import json
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
 from enum import StrEnum, auto
 from zoneinfo import ZoneInfo
 
 from aiocache import cached
+from quart import url_for
 
 from . import Browser, EventTitle, Group
 
@@ -45,6 +47,8 @@ class EmergencyShutdown(Exception):
 
 
 class DtekShutdownBase:
+    REGION: str
+    NAME: str
     URL: str
     PATTERN: re.Pattern = re.compile(r"DisconSchedule\.fact\s*=\s*(\{.*})")
 
@@ -131,22 +135,32 @@ class DtekShutdownBase:
 
 
 class DemDtekShutdown(DtekShutdownBase):
+    REGION = "Донеччина"
+    NAME = "АТ «ДТЕК Донецькі електромережі»"
     URL = "https://www.dtek-dem.com.ua/ua/shutdowns"
 
 
 class DnemDtekShutdown(DtekShutdownBase):
+    REGION = "Дніпро"
+    NAME = "АТ «ДТЕК Дніпровські електромережі»"
     URL = "https://www.dtek-dnem.com.ua/ua/shutdowns"
 
 
 class KemDtekShutdown(DtekShutdownBase):
+    REGION = "Київ"
+    NAME = "ПрАТ «ДТЕК Київські електромережі»"
     URL = "https://www.dtek-kem.com.ua/ua/shutdowns"
 
 
 class KremDtekShutdown(DtekShutdownBase):
+    REGION = "Київщина"
+    NAME = "ПрАТ «ДТЕК Київські регіональні електромережі»"
     URL = "https://www.dtek-krem.com.ua/ua/shutdowns"
 
 
 class OemDtekShutdown(DtekShutdownBase):
+    REGION = "Одеса"
+    NAME = "АТ «ДТЕК Одеські електромережі»"
     URL = "https://www.dtek-oem.com.ua/ua/shutdowns"
 
 
@@ -157,16 +171,19 @@ class DtekNetwork(StrEnum):
     KREM = auto()
     OEM = auto()
 
+    def link(self, group: str):
+        return url_for("dtek", network=str(self), group=group)
+
 
 class DtekShutdowns:
     def __init__(self, browser: Browser, cache_kwargs: dict | None = None):
         self.browser = browser
 
         self.map = {
-            # DtekNetwork.DEM: DemDtekShutdown(self.browser),
-            DtekNetwork.DNEM: DnemDtekShutdown(self.browser),
             DtekNetwork.KEM: KemDtekShutdown(self.browser),
             DtekNetwork.KREM: KremDtekShutdown(self.browser),
+            # DtekNetwork.DEM: DemDtekShutdown(self.browser),
+            DtekNetwork.DNEM: DnemDtekShutdown(self.browser),
             DtekNetwork.OEM: OemDtekShutdown(self.browser),
         }
         if cache_kwargs:
@@ -179,6 +196,14 @@ class DtekShutdowns:
     async def planned_outages(self, network: DtekNetwork):
         network = self.map[network]
         return await network.planned_outages()
+
+    def networks(self):
+        networks = defaultdict(dict)
+        for network, shutdown in self.map.items():
+            networks[shutdown.REGION] = {
+                shutdown.NAME: {group.value: network.link(group) for group in Group}
+            }
+        return dict(networks)
 
 
 if __name__ == "__main__":

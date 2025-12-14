@@ -56,15 +56,15 @@ label {
 <div class="container">
     <h2>Календар відключень</h2>
 
-    <label for="region">Місто:</label>
+    <label for="region">Регіон:</label>
     <select id="region">
-        <option value="">--Місто--</option>
+        <option value="">--Регіон--</option>
         {% for region in data.keys() %}
         <option value="{{ region }}">{{ region }}</option>
         {% endfor %}
     </select>
 
-    <label for="dso">ОСР:</label>
+    <label for="dso">Оператор системи розподілу:</label>
     <select id="dso" disabled></select>
 
     <label for="group">Група:</label>

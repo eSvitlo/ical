@@ -10,9 +10,11 @@ from icalendar import Calendar, Event
 from quart import (
     Quart,
     Response,
+    redirect,
     render_template,
     request,
     send_from_directory,
+    url_for,
 )
 from redis.connection import parse_url
 
@@ -72,25 +74,40 @@ async def index() -> Response:
     try:
         regions = await yasno_blackout.regions()
         gcals = await get_gcals()
+        data = dtek_shutdowns.networks()
     except TimeoutError:
         return Response(status=504)
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
         return Response(status=204)
 
-    data = {
+    yasno_data = {
         region.value: {
             dso.name: {group.value: dso.link(group) for group in Group}
             for dso in region.dsos
         }
         for region in regions
     }
+
+    data["Дніпро"]["ПрАТ «ПЕЕМ «Центральна енергетична компанія»"] = yasno_data[
+        "Дніпро"
+    ]["ЦЕК"]
+
     return Response(await render_template("index.html", data=data, gcals=gcals))
 
 
 @app.route("/yasno/<int:region>/<int:dso>/<string:group>.ics")
 @cached(ttl=60, skip_cache_func=response_filter, **cache_kwargs)
 async def yasno(region: int, dso: int, group: str) -> Response:
+    mapping = {
+        3: {301: "dnem"},
+        25: {902: "kem"},
+    }
+
+    with suppress(KeyError):
+        dtek_network = mapping[region][dso]
+        return redirect(url_for("dtek", network=dtek_network, group=group))
+
     try:
         planned_outages = await yasno_blackout.planned_outages(
             region_id=region, dso_id=dso
