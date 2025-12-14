@@ -5,9 +5,8 @@ from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
 
 from flask_caching import Cache
-from playwright.sync_api import sync_playwright
 
-from providers import Group
+from providers import Browser, Group
 
 GROUP_MAP = {
     "GPV1.1": Group.G1_1,
@@ -44,13 +43,11 @@ class DtekShutdownBase:
     URL: str
     PATTERN: re.Pattern = re.compile(r"DisconSchedule\.fact\s*=\s*(\{.*})")
 
-    def __init__(self, dtek):
-        self.dtek = dtek
+    def __init__(self, browser):
+        self.browser = browser
 
     def _get(self):
-        with self.dtek.context.new_page() as page:
-            page.goto(self.URL)
-            html = page.content()
+        html = self.browser.get(self.URL)
 
         if match:= self.PATTERN.search(html):
             data = match.group(1)
@@ -142,72 +139,18 @@ class DtekNetwork(StrEnum):
 
 class DtekShutdowns:
     def __init__(self, cache: Cache | None = None):
+        self.browser = Browser()
+        self.browser.start()
+
         self.map = {
-            DtekNetwork.DEM: DemDtekShutdown(self),
-            DtekNetwork.DNEM: DnemDtekShutdown(self),
-            DtekNetwork.KEM: KemDtekShutdown(self),
-            DtekNetwork.KREM: KremDtekShutdown(self),
-            DtekNetwork.OEM: OemDtekShutdown(self),
+            DtekNetwork.DEM: DemDtekShutdown(self.browser),
+            DtekNetwork.DNEM: DnemDtekShutdown(self.browser),
+            DtekNetwork.KEM: KemDtekShutdown(self.browser),
+            DtekNetwork.KREM: KremDtekShutdown(self.browser),
+            DtekNetwork.OEM: OemDtekShutdown(self.browser),
         }
         if cache:
             self.planned_outages = cache.memoize(timeout=300, args_to_ignore=["self"])(self.planned_outages)
-        self._pw = None
-        self._browser = None
-        self._context = None
-
-    @property
-    def context(self):
-        if self._context:
-            return self._context
-
-        self._pw = sync_playwright()
-        pw = self._pw.__enter__()
-        self._browser = pw.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-dev-shm-usage",
-                "--no-sandbox",
-                "--disable-gpu",
-                "--disable-extensions",
-                "--disable-background-networking",
-                "--disable-sync",
-                "--disable-translate",
-                "--disable-features=site-per-process",
-                "--single-process",
-                "--no-zygote",
-                "--disable-software-rasterizer",
-                "--disable-default-apps",
-                "--disable-component-update",
-                "--disable-renderer-backgrounding",
-                "--disable-background-timer-throttling",
-                "--disable-backgrounding-occluded-windows",
-                "--mute-audio",
-            ]
-        )
-        self._context = self._browser.new_context()
-
-        def block(route):
-            if route.request.resource_type in {"font", "image", "media", "stylesheet"}:
-                route.abort()
-            else:
-                route.continue_()
-
-        self._context.route("**/*", block)
-
-        return self._context
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self._context:
-            self._context.close()
-            self._browser.close()
-            self._pw.__exit__()
-
-            self._context = None
-            self._browser = None
-            self._pw = None
 
     def planned_outages(self, network: DtekNetwork):
         network = self.map.get(network)
@@ -217,5 +160,5 @@ class DtekShutdowns:
 if __name__ == "__main__":
     from pprint import pprint
 
-    with DtekShutdowns() as dtek:
-        pprint(dtek.planned_outages(DtekNetwork.KEM))
+    dtek = DtekShutdowns()
+    pprint(dtek.planned_outages(DtekNetwork.KEM))

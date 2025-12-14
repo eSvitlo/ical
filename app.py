@@ -89,8 +89,7 @@ def yasno(region: int, dso: int, group: str) -> Response:
 @cache.cached(timeout=60, response_filter=response_filter)
 def dtek(network: DtekNetwork, group: str) -> Response:
     try:
-        with dtek_shutdowns:
-            planned_outages = dtek_shutdowns.planned_outages(network=network)
+        planned_outages = dtek_shutdowns.planned_outages(network=network)
         slots = planned_outages[group]
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
