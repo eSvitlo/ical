@@ -86,8 +86,10 @@ class Browser(Thread):
                 future, url = task
                 page = await context.new_page()
                 try:
-                    response = await page.goto(url)
-                    result = await page.content() if response.ok else {}
+                    response = await page.goto(url, wait_until="domcontentloaded")
+                    if not response.ok:
+                        raise ConnectionError(response.status_text)
+                    result = await page.content()
                     future.set_result(result)
                 except Exception as e:
                     future.set_exception(e)
