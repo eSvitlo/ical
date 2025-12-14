@@ -143,7 +143,7 @@ class DtekShutdowns:
         self.browser.start()
 
         self.map = {
-            DtekNetwork.DEM: DemDtekShutdown(self.browser),
+            # DtekNetwork.DEM: DemDtekShutdown(self.browser),
             DtekNetwork.DNEM: DnemDtekShutdown(self.browser),
             DtekNetwork.KEM: KemDtekShutdown(self.browser),
             DtekNetwork.KREM: KremDtekShutdown(self.browser),

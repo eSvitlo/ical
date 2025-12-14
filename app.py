@@ -87,11 +87,12 @@ def yasno(region: int, dso: int, group: str) -> Response:
 
 @app.route('/dtek/<string:network>/<string:group>.ics')
 @cache.cached(timeout=60, response_filter=response_filter)
-def dtek(network: DtekNetwork, group: str) -> Response:
+def dtek(network: str, group: str) -> Response:
     try:
+        network = DtekNetwork(network)
         planned_outages = dtek_shutdowns.planned_outages(network=network)
         slots = planned_outages[group]
-    except (IOError, KeyError, TypeError) as e:
+    except (IOError, KeyError, TypeError, ValueError) as e:
         app.logger.exception(e)
         return Response("", 404)
 
@@ -122,6 +123,12 @@ def create_calendar(name: str, group: str, slots: list[Slots]) -> Response:
 def refresh_index_cache():
     with app.test_request_context():
         index()
+
+
+@scheduler.task("interval", minutes=1, next_run_time=datetime.now())
+def refresh_dtek_cache():
+    for network in dtek_shutdowns.map:
+        dtek_shutdowns.planned_outages(network=network)
 
 
 if url := os.getenv("PUBLIC_HEALTHCHECK_ENDPOINT"):
