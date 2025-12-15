@@ -61,15 +61,11 @@ class Browser(Thread):
                     "--mute-audio",
                 ]
             )
-            context = await browser.new_context()
-
             async def block(route):
                 if route.request.resource_type in {"font", "image", "media", "stylesheet"}:
                     await route.abort()
                 else:
                     await route.continue_()
-
-            await context.route("**/*", block)
 
             self.is_ready.set()
 
@@ -84,6 +80,9 @@ class Browser(Thread):
                     break
 
                 future, url = task
+
+                context = await browser.new_context()
+                await context.route("**/*", block)
                 page = await context.new_page()
                 try:
                     response = await page.goto(url, wait_until="domcontentloaded")
@@ -96,6 +95,7 @@ class Browser(Thread):
                 finally:
                     self.task_queue.task_done()
                     await page.close()
+                    await context.close()
 
 
     def get(self, url):
