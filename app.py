@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Protocol
 
 from aiocache import Cache, cached
+from aiocache.serializers import PickleSerializer
 from aiohttp import ClientSession
 from icalendar import Calendar, Event
 from quart import Quart, Response, redirect, render_template, url_for
@@ -35,7 +36,7 @@ app.add_url_rule(
 
 
 if redis_url := os.getenv("REDIS_URL"):
-    cache_kwargs = {"cache": Cache.REDIS, **parse_url(redis_url)}
+    cache_kwargs = {"cache": Cache.REDIS, **parse_url(redis_url), "serializer": PickleSerializer()}
     cache_kwargs["endpoint"] = cache_kwargs.pop("host")
 else:
     cache_kwargs = {"cache": Cache.MEMORY}
