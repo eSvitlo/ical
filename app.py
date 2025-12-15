@@ -36,6 +36,7 @@ app.add_url_rule(
 
 if redis_url := os.getenv("REDIS_URL"):
     cache_kwargs = {"cache": Cache.REDIS, **parse_url(redis_url)}
+    cache_kwargs["endpoint"] = cache_kwargs.pop("host")
 else:
     cache_kwargs = {"cache": Cache.MEMORY}
 
