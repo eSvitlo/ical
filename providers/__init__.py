@@ -39,6 +39,9 @@ class Browser(Thread):
 
     async def browser(self, playwright):
         if self._browser is None or not self._browser.is_connected():
+            if self._browser is not None:
+                await self._browser.close()
+
             self._browser = await playwright.chromium.launch(
                 headless=True,
                 args=[
@@ -46,18 +49,8 @@ class Browser(Thread):
                     "--no-sandbox",
                     "--disable-gpu",
                     "--disable-extensions",
-                    "--disable-background-networking",
-                    "--disable-sync",
-                    "--disable-translate",
-                    "--disable-features=site-per-process",
-                    "--single-process",
-                    "--no-zygote",
-                    "--disable-software-rasterizer",
                     "--disable-default-apps",
                     "--disable-component-update",
-                    "--disable-renderer-backgrounding",
-                    "--disable-background-timer-throttling",
-                    "--disable-backgrounding-occluded-windows",
                     "--mute-audio",
                 ]
             )
@@ -78,6 +71,8 @@ class Browser(Thread):
                     continue
 
                 if task is SHUTDOWN_SIGNAL:
+                    await self._browser.close()
+                    self._browser = None
                     self.task_queue.task_done()
                     break
 
@@ -96,9 +91,9 @@ class Browser(Thread):
                 except Exception as e:
                     future.set_exception(e)
                 finally:
-                    self.task_queue.task_done()
                     await page.close()
                     await context.close()
+                    self.task_queue.task_done()
 
 
     def get(self, url):
