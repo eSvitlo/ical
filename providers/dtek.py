@@ -153,7 +153,7 @@ class DtekShutdowns:
             self.planned_outages = cache.memoize(timeout=300, args_to_ignore=["self"])(self.planned_outages)
 
     def planned_outages(self, network: DtekNetwork):
-        network = self.map.get(network)
+        network = self.map[network]
         return network.planned_outages()
 
 
