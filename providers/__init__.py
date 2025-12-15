@@ -2,7 +2,7 @@ from asyncio import new_event_loop, set_event_loop
 from concurrent.futures import Future
 from enum import StrEnum
 from queue import Empty, Queue
-from threading import Event, Thread
+from threading import Thread
 
 from playwright.async_api import async_playwright
 
@@ -30,16 +30,16 @@ class Browser(Thread):
         super().__init__(daemon=True)
         self.task_queue = Queue()
         self.loop = new_event_loop()
-        self.is_ready = Event()
+        self._browser = None
 
     def run(self):
         set_event_loop(self.loop)
         self.loop.run_until_complete(self.worker())
         self.loop.close()
 
-    async def worker(self):
-        async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(
+    async def browser(self, playwright):
+        if self._browser is None or not self._browser.is_connected():
+            self._browser = await playwright.chromium.launch(
                 headless=True,
                 args=[
                     "--disable-dev-shm-usage",
@@ -61,13 +61,15 @@ class Browser(Thread):
                     "--mute-audio",
                 ]
             )
+        return self._browser
+
+    async def worker(self):
+        async with async_playwright() as playwright:
             async def block(route):
                 if route.request.resource_type in {"font", "image", "media", "stylesheet"}:
                     await route.abort()
                 else:
                     await route.continue_()
-
-            self.is_ready.set()
 
             while True:
                 try:
@@ -81,6 +83,7 @@ class Browser(Thread):
 
                 future, url = task
 
+                browser = await self.browser(playwright)
                 context = await browser.new_context()
                 await context.route("**/*", block)
                 page = await context.new_page()
@@ -99,9 +102,6 @@ class Browser(Thread):
 
 
     def get(self, url):
-        if not self.is_ready.wait(timeout=30):
-            raise TimeoutError
-
         future = Future()
         self.task_queue.put((future, url))
 
