@@ -1,10 +1,11 @@
+import asyncio
 from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import StrEnum
 
-import requests
-from flask import url_for
+from aiohttp import ClientSession
 from pydantic import BaseModel, TypeAdapter
+from quart import url_for
 
 from providers import Group
 
@@ -103,15 +104,17 @@ class YasnoBlackout:
     _REGIONS_TA = TypeAdapter(list[Region])
     _DAY_TA = TypeAdapter(Day)
 
-    def _get(self, *path, **params):
+    async def _get(self, *path, **params):
         url = "/".join(map(str, (self.URL, *path)))
-        return requests.get(url=url, params=params).json()
+        async with ClientSession() as session:
+            async with session.get(url, params=params) as response:
+                return await response.json()
 
-    def regions(self) -> list[Region]:
-        return [region.set_region() for region in self._REGIONS_TA.validate_python(self._get("addresses/v2/regions"))]
+    async def regions(self) -> list[Region]:
+        return [region.set_region() for region in self._REGIONS_TA.validate_python(await self._get("addresses/v2/regions"))]
 
-    def planned_outages(self, region_id: int, dso_id: int):
-        result = self._get("regions", region_id, "dsos", dso_id, "planned-outages")
+    async def planned_outages(self, region_id: int, dso_id: int):
+        result = await self._get("regions", region_id, "dsos", dso_id, "planned-outages")
 
         groups: dict[Group, list[Slot]] = defaultdict(list)
         for group_id, day_data in result.items():
@@ -140,6 +143,7 @@ class YasnoBlackout:
 
         return dict(groups)
 
+
 if __name__ == "__main__":
     yb = YasnoBlackout()
-    print(yb.planned_outages(region_id=25, dso_id=902))
+    print(asyncio.run(yb.planned_outages(region_id=25, dso_id=902)))

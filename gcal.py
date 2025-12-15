@@ -1,11 +1,12 @@
 import os
 
-import requests
+from aiohttp import ClientSession
 
 
-def get_gcals():
+async def get_gcals():
     if url := os.getenv("GCAL_URL"):
-        response = requests.get(url)
-        if response.ok:
-            return response.json()
+        async with ClientSession() as session:
+            async with session.get(url) as response:
+                if response.ok:
+                    return await response.json()
     return {}

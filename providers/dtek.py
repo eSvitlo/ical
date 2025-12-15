@@ -1,10 +1,11 @@
+import asyncio
 import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
 
-from flask_caching import Cache
+from aiocache import cached
 
 from providers import Browser, Group
 
@@ -46,8 +47,8 @@ class DtekShutdownBase:
     def __init__(self, browser):
         self.browser = browser
 
-    def _get(self):
-        html = self.browser.get(self.URL)
+    async def _get(self):
+        html = await self.browser.get(self.URL)
 
         if match:= self.PATTERN.search(html):
             data = match.group(1)
@@ -94,8 +95,8 @@ class DtekShutdownBase:
 
         return joined
 
-    def planned_outages(self):
-        data = self._get()
+    async def planned_outages(self):
+        data = await self._get()
         if not data:
             return {}
 
@@ -138,9 +139,8 @@ class DtekNetwork(StrEnum):
 
 
 class DtekShutdowns:
-    def __init__(self, cache: Cache | None = None):
+    def __init__(self, cache_kwargs: dict | None = None):
         self.browser = Browser()
-        self.browser.start()
 
         self.map = {
             # DtekNetwork.DEM: DemDtekShutdown(self.browser),
@@ -149,16 +149,18 @@ class DtekShutdowns:
             DtekNetwork.KREM: KremDtekShutdown(self.browser),
             DtekNetwork.OEM: OemDtekShutdown(self.browser),
         }
-        if cache:
-            self.planned_outages = cache.memoize(timeout=300, args_to_ignore=["self"])(self.planned_outages)
+        if cache_kwargs:
+            self.planned_outages = cached(timeout=300, noself=True, **cache_kwargs)(self.planned_outages)
 
-    def planned_outages(self, network: DtekNetwork):
+    async def planned_outages(self, network: DtekNetwork):
         network = self.map[network]
-        return network.planned_outages()
+        return await network.planned_outages()
 
 
 if __name__ == "__main__":
     from pprint import pprint
 
     dtek = DtekShutdowns()
-    pprint(dtek.planned_outages(DtekNetwork.KEM))
+    loop = asyncio.new_event_loop()
+    loop.create_task(dtek.browser.worker())
+    pprint(loop.run_until_complete(dtek.planned_outages(DtekNetwork.KEM)))

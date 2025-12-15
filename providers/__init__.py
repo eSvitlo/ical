@@ -1,8 +1,6 @@
-from asyncio import new_event_loop, set_event_loop
-from concurrent.futures import Future
+import asyncio
+from asyncio import Future, Queue, QueueEmpty
 from enum import StrEnum
-from queue import Empty, Queue
-from threading import Thread
 
 from playwright.async_api import async_playwright
 
@@ -25,17 +23,10 @@ class Group(StrEnum):
 SHUTDOWN_SIGNAL = object()
 
 
-class Browser(Thread):
+class Browser:
     def __init__(self):
-        super().__init__(daemon=True)
         self.task_queue = Queue()
-        self.loop = new_event_loop()
         self._browser = None
-
-    def run(self):
-        set_event_loop(self.loop)
-        self.loop.run_until_complete(self.worker())
-        self.loop.close()
 
     async def browser(self, playwright):
         if self._browser is None or not self._browser.is_connected():
@@ -66,8 +57,9 @@ class Browser(Thread):
 
             while True:
                 try:
-                    task = self.task_queue.get(timeout=0.1)
-                except Empty:
+                    task = self.task_queue.get_nowait()
+                except QueueEmpty:
+                    await asyncio.sleep(0.1)
                     continue
 
                 if task is SHUTDOWN_SIGNAL:
@@ -78,11 +70,11 @@ class Browser(Thread):
 
                 future, url = task
 
-                browser = await self.browser(playwright)
-                context = await browser.new_context()
-                await context.route("**/*", block)
-                page = await context.new_page()
                 try:
+                    browser = await self.browser(playwright)
+                    context = await browser.new_context()
+                    await context.route("**/*", block)
+                    page = await context.new_page()
                     response = await page.goto(url, wait_until="domcontentloaded")
                     if not response.ok:
                         raise ConnectionError(response.status_text)
@@ -95,14 +87,10 @@ class Browser(Thread):
                     await context.close()
                     self.task_queue.task_done()
 
-
-    def get(self, url):
+    async def get(self, url):
         future = Future()
-        self.task_queue.put((future, url))
+        self.task_queue.put_nowait((future, url))
 
-        return future.result(timeout=30)
+        await future
 
-    def stop(self):
-        self.task_queue.put(SHUTDOWN_SIGNAL)
-        self.loop.call_soon_threadsafe(self.loop.stop)
-        self.join()
+        return future.result()

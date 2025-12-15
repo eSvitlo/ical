@@ -1,24 +1,31 @@
+import asyncio
+import logging
 import os
+from contextlib import suppress
 from datetime import datetime
 from typing import Protocol
 
-import requests
-from flask import Flask, Response, render_template, url_for
-from flask_apscheduler import APScheduler
-from flask_caching import Cache
+from aiocache import Cache, cached
+from aiohttp import ClientSession
 from icalendar import Calendar, Event
+from quart import Quart, Response, redirect, render_template, url_for
+from redis.connection import parse_url
 
 from gcal import get_gcals
+from logger import HealthCheckFilter
+from providers import Group
 from providers.dtek import DtekNetwork, DtekShutdowns
 from providers.yasno import YasnoBlackout
-from providers import Group
 
-app = Flask(__name__)
+logging.getLogger("hypercorn.access").addFilter(HealthCheckFilter())
+
+
+app = Quart(__name__)
 app.json.ensure_ascii = False
 app.add_url_rule(
     "/favicon.ico",
     endpoint="favicon",
-    redirect_to=lambda _: url_for("static", filename="favicon.ico"),
+    view_func=lambda: redirect(url_for("static", filename="favicon.ico")),
 )
 app.add_url_rule(
     "/healthz",
@@ -26,20 +33,15 @@ app.add_url_rule(
     view_func=lambda: "",
 )
 
-config = {
-    "CACHE_TYPE": "RedisCache" if os.getenv("REDIS_URL") else "FileSystemCache",
-    "CACHE_DIR": "/tmp/ical",
-    "CACHE_REDIS_URL": os.getenv("REDIS_URL"),
-}
-app.config.from_mapping(config)
-cache = Cache(app)
 
-scheduler = APScheduler()
-scheduler.init_app(app)
-scheduler.start()
+if redis_url := os.getenv("REDIS_URL"):
+    cache_kwargs = {"cache": Cache.REDIS, **parse_url(redis_url)}
+else:
+    cache_kwargs = {"cache": Cache.MEMORY}
+
 
 yasno_blackout = YasnoBlackout()
-dtek_shutdowns = DtekShutdowns(cache)
+dtek_shutdowns = DtekShutdowns(cache_kwargs)
 
 
 class Slots(Protocol):
@@ -49,15 +51,15 @@ class Slots(Protocol):
 
 
 def response_filter(response: Response) -> bool:
-    return response.status_code == 200
+    return response.status_code != 200
 
 
 @app.route("/")
-@cache.cached(timeout=3600, key_prefix="index", response_filter=response_filter)
-def index() -> Response:
+@cached(ttl=3600, skip_cache_func=response_filter, **cache_kwargs)
+async def index() -> Response:
     try:
-        regions = yasno_blackout.regions()
-        gcals = get_gcals()
+        regions = await yasno_blackout.regions()
+        gcals = await get_gcals()
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
         return Response("", 204)
@@ -69,14 +71,14 @@ def index() -> Response:
             } for dso in region.dsos
         } for region in regions
     }
-    return Response(render_template("index.html", data=data, gcals=gcals))
+    return Response(await render_template("index.html", data=data, gcals=gcals))
 
 
 @app.route('/yasno/<int:region>/<int:dso>/<string:group>.ics')
-@cache.cached(timeout=60, response_filter=response_filter)
-def yasno(region: int, dso: int, group: str) -> Response:
+@cached(ttl=60, skip_cache_func=response_filter, **cache_kwargs)
+async def yasno(region: int, dso: int, group: str) -> Response:
     try:
-        planned_outages = yasno_blackout.planned_outages(region_id=region, dso_id=dso)
+        planned_outages = await yasno_blackout.planned_outages(region_id=region, dso_id=dso)
         slots = planned_outages[group]
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
@@ -86,11 +88,11 @@ def yasno(region: int, dso: int, group: str) -> Response:
 
 
 @app.route('/dtek/<string:network>/<string:group>.ics')
-@cache.cached(timeout=60, response_filter=response_filter)
-def dtek(network: str, group: str) -> Response:
+@cached(ttl=60, skip_cache_func=response_filter, **cache_kwargs)
+async def dtek(network: str, group: str) -> Response:
     try:
         network = DtekNetwork(network)
-        planned_outages = dtek_shutdowns.planned_outages(network=network)
+        planned_outages = await dtek_shutdowns.planned_outages(network=network)
         slots = planned_outages[group]
     except (IOError, KeyError, TypeError, ValueError) as e:
         app.logger.exception(e)
@@ -119,22 +121,34 @@ def create_calendar(name: str, group: str, slots: list[Slots]) -> Response:
     return Response(cal.to_ical(), mimetype="text/calendar")
 
 
-@scheduler.task("interval", minutes=1, next_run_time=datetime.now())
-def refresh_index_cache():
-    with app.test_request_context():
-        index()
+@app.before_serving
+async def startup():
+    @app.add_background_task
+    async def refresh_index_cache():
+        async with app.test_request_context("/"):
+            while True:
+                with suppress(Exception):
+                    await index()
+                await asyncio.sleep(60)
 
+    @app.add_background_task
+    async def refresh_dtek_cache():
+        while True:
+            with suppress(Exception):
+                for network in dtek_shutdowns.map:
+                    await dtek_shutdowns.planned_outages(network=network)
+            await asyncio.sleep(60)
 
-@scheduler.task("interval", minutes=1, next_run_time=datetime.now())
-def refresh_dtek_cache():
-    for network in dtek_shutdowns.map:
-        dtek_shutdowns.planned_outages(network=network)
+    if public_healthcheck_endpoint := os.getenv("PUBLIC_HEALTHCHECK_ENDPOINT"):
+        @app.add_background_task
+        async def spin_up():
+            async with ClientSession() as session:
+                while True:
+                    with suppress(Exception):
+                        await session.get(public_healthcheck_endpoint)
+                    await asyncio.sleep(60)
 
-
-if url := os.getenv("PUBLIC_HEALTHCHECK_ENDPOINT"):
-    @scheduler.task("interval", minutes=1)
-    def spin_up():
-        requests.get(url)
+    app.add_background_task(dtek_shutdowns.browser.worker)
 
 
 if __name__ == "__main__":
