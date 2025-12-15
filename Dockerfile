@@ -10,4 +10,4 @@ RUN uv sync --no-dev
 RUN uv run playwright install chromium
 RUN uv run playwright install-deps chromium && rm -rf /var/lib/apt/lists/*
 
-CMD ["uv", "run", "hypercorn", "app:app", "--access-log", "-"]
+CMD ["sh", "-c", "uv run hypercorn app:app --bind 0.0.0.0:${PORT:-8000} --access-log -"]
