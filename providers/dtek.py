@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
+from operator import not_
 
 from aiocache import cached
 
@@ -150,7 +151,7 @@ class DtekShutdowns:
             DtekNetwork.OEM: OemDtekShutdown(self.browser),
         }
         if cache_kwargs:
-            self.planned_outages = cached(timeout=300, noself=True, **cache_kwargs)(self.planned_outages)
+            self.planned_outages = cached(timeout=300, skip_cache_func=not_, noself=True, **cache_kwargs)(self.planned_outages)
 
     async def planned_outages(self, network: DtekNetwork):
         network = self.map[network]
