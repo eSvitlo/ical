@@ -13,3 +13,9 @@ dependencies = [
     "quart>=0.20.0",
     "redis>=7.1.0",
 ]
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.5.0",
+    "ruff>=0.14.9",
+]

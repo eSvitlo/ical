@@ -36,7 +36,11 @@ app.add_url_rule(
 
 
 if redis_url := os.getenv("REDIS_URL"):
-    cache_kwargs = {"cache": Cache.REDIS, **parse_url(redis_url), "serializer": PickleSerializer()}
+    cache_kwargs = {
+        "cache": Cache.REDIS,
+        **parse_url(redis_url),
+        "serializer": PickleSerializer(),
+    }
     cache_kwargs["endpoint"] = cache_kwargs.pop("host")
 else:
     cache_kwargs = {"cache": Cache.MEMORY}
@@ -68,19 +72,21 @@ async def index() -> Response:
 
     data = {
         region.value: {
-            dso.name: {
-                group.value: dso.link(group) for group in Group
-            } for dso in region.dsos
-        } for region in regions
+            dso.name: {group.value: dso.link(group) for group in Group}
+            for dso in region.dsos
+        }
+        for region in regions
     }
     return Response(await render_template("index.html", data=data, gcals=gcals))
 
 
-@app.route('/yasno/<int:region>/<int:dso>/<string:group>.ics')
+@app.route("/yasno/<int:region>/<int:dso>/<string:group>.ics")
 @cached(ttl=60, skip_cache_func=response_filter, **cache_kwargs)
 async def yasno(region: int, dso: int, group: str) -> Response:
     try:
-        planned_outages = await yasno_blackout.planned_outages(region_id=region, dso_id=dso)
+        planned_outages = await yasno_blackout.planned_outages(
+            region_id=region, dso_id=dso
+        )
         slots = planned_outages[group]
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
@@ -89,7 +95,7 @@ async def yasno(region: int, dso: int, group: str) -> Response:
     return create_calendar("Yasno Blackout", group, slots)
 
 
-@app.route('/dtek/<string:network>/<string:group>.ics')
+@app.route("/dtek/<string:network>/<string:group>.ics")
 @cached(ttl=60, skip_cache_func=response_filter, **cache_kwargs)
 async def dtek(network: str, group: str) -> Response:
     try:
@@ -142,6 +148,7 @@ async def startup():
             await asyncio.sleep(60)
 
     if public_healthcheck_endpoint := os.getenv("PUBLIC_HEALTHCHECK_ENDPOINT"):
+
         @app.add_background_task
         async def spin_up():
             async with ClientSession() as session:

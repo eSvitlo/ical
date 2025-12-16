@@ -92,10 +92,20 @@ class Day(BaseModel):
                     slot.date_start = slot.date_end = self.date
                     slot.day_status = self.status
             case DayStatus.EMERGENCY_SHUTDOWNS:
-                slot = Slot(start=0, end=1440, date_start=self.date, date_end=self.date, day_status=self.status)
+                slot = Slot(
+                    start=0,
+                    end=1440,
+                    date_start=self.date,
+                    date_end=self.date,
+                    day_status=self.status,
+                )
                 self.slots = [slot]
-        return [slot for slot in self.slots if slot.type == SlotType.DEFINITE and slot.day_status != DayStatus.WAITING_FOR_SCHEDULE]
-
+        return [
+            slot
+            for slot in self.slots
+            if slot.type == SlotType.DEFINITE
+            and slot.day_status != DayStatus.WAITING_FOR_SCHEDULE
+        ]
 
 
 class YasnoBlackout:
@@ -111,24 +121,33 @@ class YasnoBlackout:
                 return await response.json()
 
     async def regions(self) -> list[Region]:
-        return [region.set_region() for region in self._REGIONS_TA.validate_python(await self._get("addresses/v2/regions"))]
+        return [
+            region.set_region()
+            for region in self._REGIONS_TA.validate_python(
+                await self._get("addresses/v2/regions")
+            )
+        ]
 
     async def planned_outages(self, region_id: int, dso_id: int):
-        result = await self._get("regions", region_id, "dsos", dso_id, "planned-outages")
+        result = await self._get(
+            "regions", region_id, "dsos", dso_id, "planned-outages"
+        )
 
         groups: dict[Group, list[Slot]] = defaultdict(list)
         for group_id, day_data in result.items():
             for day_name in DayName:
                 if day_name in day_data:
-                    day_slots = self._DAY_TA.validate_python(day_data[day_name]).get_slots()
+                    day_slots = self._DAY_TA.validate_python(
+                        day_data[day_name]
+                    ).get_slots()
                     slots = day_slots[:]
                     if groups[Group(group_id)] and slots:
                         last_slot = groups[Group(group_id)][-1]
                         next_slot = slots[0]
                         if (
-                            last_slot.dt_end == next_slot.dt_start and
-                            last_slot.type == next_slot.type and
-                            last_slot.day_status == next_slot.day_status
+                            last_slot.dt_end == next_slot.dt_start
+                            and last_slot.type == next_slot.type
+                            and last_slot.day_status == next_slot.day_status
                         ):
                             joined_slot = Slot(
                                 start=last_slot.start,

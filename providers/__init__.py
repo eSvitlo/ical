@@ -43,14 +43,20 @@ class Browser:
                     "--disable-default-apps",
                     "--disable-component-update",
                     "--mute-audio",
-                ]
+                ],
             )
         return self._browser
 
     async def worker(self):
         async with async_playwright() as playwright:
+
             async def block(route):
-                if route.request.resource_type in {"font", "image", "media", "stylesheet"}:
+                if route.request.resource_type in {
+                    "font",
+                    "image",
+                    "media",
+                    "stylesheet",
+                }:
                     await route.abort()
                 else:
                     await route.continue_()

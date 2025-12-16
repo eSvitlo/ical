@@ -40,7 +40,6 @@ class Slot:
     title: str = "Заплановане відключення світла"
 
 
-
 class DtekShutdownBase:
     URL: str
     PATTERN: re.Pattern = re.compile(r"DisconSchedule\.fact\s*=\s*(\{.*})")
@@ -51,7 +50,7 @@ class DtekShutdownBase:
     async def _get(self):
         html = await self.browser.get(self.URL)
 
-        if match:= self.PATTERN.search(html):
+        if match := self.PATTERN.search(html):
             data = match.group(1)
             return json.loads(data)["data"]
 
@@ -106,7 +105,9 @@ class DtekShutdownBase:
             dt = datetime.fromtimestamp(int(date), tz=timezone.utc)
             for g, days in groups.items():
                 group = GROUP_MAP[g]
-                slots[group] = self._join_slots(slots.get(group, []) + self._parse_group(dt, days))
+                slots[group] = self._join_slots(
+                    slots.get(group, []) + self._parse_group(dt, days)
+                )
 
         return slots
 
@@ -151,7 +152,9 @@ class DtekShutdowns:
             DtekNetwork.OEM: OemDtekShutdown(self.browser),
         }
         if cache_kwargs:
-            self.planned_outages = cached(timeout=300, skip_cache_func=not_, noself=True, **cache_kwargs)(self.planned_outages)
+            self.planned_outages = cached(
+                timeout=300, skip_cache_func=not_, noself=True, **cache_kwargs
+            )(self.planned_outages)
 
     async def planned_outages(self, network: DtekNetwork):
         network = self.map[network]
