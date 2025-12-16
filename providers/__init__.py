@@ -1,5 +1,4 @@
-import asyncio
-from asyncio import Future, Queue, QueueEmpty
+from asyncio import Future, Queue, QueueShutDown
 from enum import StrEnum
 
 from playwright.async_api import async_playwright
@@ -63,10 +62,9 @@ class Browser:
 
             while True:
                 try:
-                    task = self.task_queue.get_nowait()
-                except QueueEmpty:
-                    await asyncio.sleep(0.1)
-                    continue
+                    task = await self.task_queue.get()
+                except QueueShutDown:
+                    break
 
                 if task is SHUTDOWN_SIGNAL:
                     await self._browser.close()
