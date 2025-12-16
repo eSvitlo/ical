@@ -153,7 +153,7 @@ class DtekShutdowns:
         }
         if cache_kwargs:
             self.planned_outages = cached(
-                timeout=300, skip_cache_func=not_, noself=True, **cache_kwargs
+                ttl=300, skip_cache_func=not_, noself=True, **cache_kwargs
             )(self.planned_outages)
 
     async def planned_outages(self, network: DtekNetwork):
