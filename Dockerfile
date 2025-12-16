@@ -1,5 +1,7 @@
 FROM python:3.14-slim
 
+ENV DEBIAN_FRONTEND=noninteractive
+
 WORKDIR /app
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/
