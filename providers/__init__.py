@@ -91,6 +91,9 @@ class Browser:
                     await context.close()
                     self.task_queue.task_done()
 
+            self._browser.close()
+            self._browser = None
+
     async def get(self, url):
         future = Future()
         self.task_queue.put_nowait((future, url))
