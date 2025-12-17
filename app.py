@@ -66,9 +66,11 @@ async def index() -> Response:
     try:
         regions = await yasno_blackout.regions()
         gcals = await get_gcals()
+    except TimeoutError:
+        return Response(status=504)
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
-        return Response("", 204)
+        return Response(status=204)
 
     data = {
         region.value: {
@@ -88,9 +90,11 @@ async def yasno(region: int, dso: int, group: str) -> Response:
             region_id=region, dso_id=dso
         )
         slots = planned_outages[group]
+    except TimeoutError:
+        return Response(status=504)
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
-        return Response("", 404)
+        return Response(status=404)
 
     return create_calendar("Yasno Blackout", group, slots)
 
@@ -102,9 +106,11 @@ async def dtek(network: str, group: str) -> Response:
         network = DtekNetwork(network)
         planned_outages = await dtek_shutdowns.planned_outages(network=network)
         slots = planned_outages[group]
-    except (IOError, KeyError, TypeError, ValueError) as e:
+    except TimeoutError:
+        return Response(status=504)
+    except (IOError, KeyError, ValueError) as e:
         app.logger.exception(e)
-        return Response("", 404)
+        return Response(status=404)
 
     return create_calendar("DTEK Shutdowns", group, slots)
 
