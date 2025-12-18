@@ -63,8 +63,6 @@ class Browser:
                     "--disable-default-apps",
                     "--disable-component-update",
                     "--mute-audio",
-                    "--no-zygote",
-                    "--single-process",
                 ],
             )
             self._requests = 0
