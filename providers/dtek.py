@@ -54,7 +54,7 @@ class DtekShutdownBase:
             data = match.group(1)
             return json.loads(data)["data"]
 
-        return {}
+        raise ValueError("No shutdown schedule found")
 
     @staticmethod
     def _parse_group(dt: datetime, data) -> list[Slot]:
