@@ -9,7 +9,13 @@ from aiocache import Cache, cached
 from aiocache.serializers import PickleSerializer
 from aiohttp import ClientSession
 from icalendar import Calendar, Event
-from quart import Quart, Response, redirect, render_template, url_for
+from quart import (
+    Quart,
+    Response,
+    render_template,
+    request,
+    send_from_directory,
+)
 from redis.connection import parse_url
 
 from gcal import get_gcals
@@ -23,11 +29,7 @@ logging.getLogger("hypercorn.access").addFilter(HealthCheckFilter())
 
 app = Quart(__name__)
 app.json.ensure_ascii = False
-app.add_url_rule(
-    "/favicon.ico",
-    endpoint="favicon",
-    view_func=lambda: redirect(url_for("static", filename="favicon.ico")),
-)
+
 app.add_url_rule(
     "/healthz",
     endpoint="health_check",
@@ -54,6 +56,12 @@ class Slots(Protocol):
     title: str
     dt_start: datetime
     dt_end: datetime
+
+
+@app.route("/favicon.ico")
+@app.route("/robots.txt")
+async def static_root() -> Response:
+    return await send_from_directory(app.static_folder, request.path.lstrip("/"))
 
 
 def response_filter(response: Response) -> bool:
