@@ -28,6 +28,7 @@ class Browser:
     def __init__(self):
         self._task_queue = Queue()
         self._browser = None
+        self._requests = 0
         self._restart_task = None
 
     async def _restart(self):
@@ -43,7 +44,11 @@ class Browser:
         self._restart_task = create_task(self._restart())
 
     async def browser(self, playwright):
-        if self._browser is None or not self._browser.is_connected():
+        if (
+            self._browser is None
+            or not self._browser.is_connected()
+            or self._requests > self.MAX_REQUESTS
+        ):
             if self._browser:
                 await self._browser.close()
 
@@ -61,6 +66,7 @@ class Browser:
                     "--single-process",
                 ],
             )
+            self._requests = 0
 
         self.schedule_restart()
         return self._browser
@@ -108,6 +114,8 @@ class Browser:
 
                     await page.close()
                     await context.close()
+
+                    self._requests += 1
 
                 except Exception as e:
                     future.set_exception(e)
