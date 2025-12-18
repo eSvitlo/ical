@@ -23,6 +23,7 @@ SHUTDOWN_SIGNAL = object()
 
 
 class Browser:
+    MAX_INACTIVITY = 60
     MAX_REQUESTS = 50
 
     def __init__(self):
@@ -32,7 +33,7 @@ class Browser:
         self._restart_task = None
 
     async def _restart(self):
-        await sleep(60)
+        await sleep(self.MAX_INACTIVITY)
 
         if self._browser:
             await self._browser.close()
