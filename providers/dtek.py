@@ -141,8 +141,8 @@ class DtekNetwork(StrEnum):
 
 
 class DtekShutdowns:
-    def __init__(self, cache_kwargs: dict | None = None):
-        self.browser = Browser()
+    def __init__(self, browser: Browser, cache_kwargs: dict | None = None):
+        self.browser = browser
 
         self.map = {
             # DtekNetwork.DEM: DemDtekShutdown(self.browser),
@@ -164,7 +164,8 @@ class DtekShutdowns:
 if __name__ == "__main__":
     from pprint import pprint
 
-    dtek = DtekShutdowns()
+    browser = Browser()
+    dtek = DtekShutdowns(browser)
     loop = asyncio.new_event_loop()
-    loop.create_task(dtek.browser.worker())
+    loop.create_task(dtek.browser.run())
     pprint(loop.run_until_complete(dtek.planned_outages(DtekNetwork.KEM)))

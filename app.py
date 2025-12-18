@@ -20,7 +20,7 @@ from redis.connection import parse_url
 
 from gcal import get_gcals
 from logger import HealthCheckFilter
-from providers import Group
+from providers import Browser, Group
 from providers.dtek import DtekNetwork, DtekShutdowns
 from providers.yasno import YasnoBlackout
 
@@ -49,7 +49,8 @@ else:
 
 
 yasno_blackout = YasnoBlackout()
-dtek_shutdowns = DtekShutdowns(cache_kwargs)
+browser = Browser()
+dtek_shutdowns = DtekShutdowns(browser, cache_kwargs)
 
 
 class Slots(Protocol):
@@ -171,7 +172,12 @@ async def startup():
                         await session.get(public_healthcheck_endpoint)
                     await asyncio.sleep(60)
 
-    app.add_background_task(dtek_shutdowns.browser.worker)
+    app.add_background_task(browser.run)
+
+
+@app.after_serving
+async def shutdown():
+    browser.shutdown()
 
 
 if __name__ == "__main__":

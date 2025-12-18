@@ -23,13 +23,20 @@ SHUTDOWN_SIGNAL = object()
 
 
 class Browser:
+    MAX_REQUESTS = 50
+
     def __init__(self):
-        self.task_queue = Queue()
+        self._task_queue = Queue()
         self._browser = None
+        self._requests = 0
 
     async def browser(self, playwright):
-        if self._browser is None or not self._browser.is_connected():
-            if self._browser is not None:
+        if (
+            self._browser is None
+            or not self._browser.is_connected()
+            or self._requests > self.MAX_REQUESTS
+        ):
+            if self._browser:
                 await self._browser.close()
 
             self._browser = await playwright.chromium.launch(
@@ -42,11 +49,14 @@ class Browser:
                     "--disable-default-apps",
                     "--disable-component-update",
                     "--mute-audio",
+                    "--no-zygote",
+                    "--single-process",
                 ],
             )
+            self._requests = 0
         return self._browser
 
-    async def worker(self):
+    async def run(self):
         async with async_playwright() as playwright:
 
             async def block(route):
@@ -62,14 +72,14 @@ class Browser:
 
             while True:
                 try:
-                    task = await self.task_queue.get()
+                    task = await self._task_queue.get()
                 except QueueShutDown:
                     break
 
                 if task is SHUTDOWN_SIGNAL:
                     await self._browser.close()
                     self._browser = None
-                    self.task_queue.task_done()
+                    self._task_queue.task_done()
                     break
 
                 future, url = task
@@ -78,26 +88,36 @@ class Browser:
                     browser = await self.browser(playwright)
                     context = await browser.new_context()
                     await context.route("**/*", block)
+
                     page = await context.new_page()
                     response = await page.goto(url, wait_until="domcontentloaded")
                     if not response.ok:
                         raise ConnectionError(response.status_text)
+
                     result = await page.content()
                     future.set_result(result)
-                except Exception as e:
-                    future.set_exception(e)
-                finally:
+
                     await page.close()
                     await context.close()
-                    self.task_queue.task_done()
+
+                    self._requests += 1
+
+                except Exception as e:
+                    future.set_exception(e)
+
+                finally:
+                    self._task_queue.task_done()
 
             self._browser.close()
             self._browser = None
 
     async def get(self, url):
         future = Future()
-        self.task_queue.put_nowait((future, url))
+        self._task_queue.put_nowait((future, url))
 
         await future
 
         return future.result()
+
+    def shutdown(self):
+        self._task_queue.shutdown()
