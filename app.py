@@ -102,7 +102,7 @@ async def yasno(region: int, dso: int, group: str) -> Response:
         return Response(status=504)
     except (IOError, KeyError, TypeError) as e:
         app.logger.exception(e)
-        return Response(status=404)
+        return Response(status=204)
 
     return create_calendar("Yasno Blackout", group, slots)
 
@@ -118,7 +118,7 @@ async def dtek(network: str, group: str) -> Response:
         return Response(status=504)
     except (IOError, KeyError, ValueError) as e:
         app.logger.exception(e)
-        return Response(status=404)
+        return Response(status=204)
 
     return create_calendar("DTEK Shutdowns", group, slots)
 
