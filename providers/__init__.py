@@ -20,9 +20,6 @@ class Group(StrEnum):
     G6_2 = "6.2"
 
 
-SHUTDOWN_SIGNAL = object()
-
-
 class Browser:
     def __init__(self, max_inactivity=None, max_requests=None):
         self.max_inactivity = max_inactivity or 30
@@ -94,17 +91,9 @@ class Browser:
 
             while True:
                 try:
-                    task = await self._task_queue.get()
+                    future, url = await self._task_queue.get()
                 except QueueShutDown:
                     break
-
-                if task is SHUTDOWN_SIGNAL:
-                    await self._browser.close()
-                    self._browser = None
-                    self._task_queue.task_done()
-                    break
-
-                future, url = task
 
                 try:
                     async with self._browser_lock:
