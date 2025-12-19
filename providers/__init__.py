@@ -1,4 +1,4 @@
-from asyncio import Future, Queue, QueueShutDown, create_task, sleep
+from asyncio import Future, Lock, Queue, QueueShutDown, create_task, sleep
 from enum import StrEnum
 
 from playwright.async_api import async_playwright
@@ -29,20 +29,22 @@ class Browser:
     def __init__(self):
         self._task_queue = Queue()
         self._browser = None
+        self._browser_lock = Lock()
         self._requests = 0
         self._restart_task = None
 
-    async def _restart(self):
+    async def _restart(self, browser):
         await sleep(self.MAX_INACTIVITY)
 
-        if self._browser:
-            await self._browser.close()
-            self._browser = None
+        async with self._browser_lock:
+            if self._browser is browser:
+                await self._browser.close()
+                self._browser = None
 
     def schedule_restart(self):
         if self._restart_task:
             self._restart_task.cancel()
-        self._restart_task = create_task(self._restart())
+        self._restart_task = create_task(self._restart(self._browser))
 
     async def browser(self, playwright):
         if (
@@ -58,10 +60,16 @@ class Browser:
                 args=[
                     "--disable-dev-shm-usage",
                     "--no-sandbox",
+                    "--disable-background-networking",
+                    "--disable-background-timer-throttling",
+                    "--disable-backgrounding-occluded-windows",
+                    "--disable-breakpad",
                     "--disable-gpu",
+                    "--disable-hang-monitor",
+                    "--disable-renderer-backgrounding",
+                    "--disable-sync",
                     "--disable-extensions",
                     "--disable-default-apps",
-                    "--disable-component-update",
                     "--mute-audio",
                 ],
             )
@@ -99,20 +107,21 @@ class Browser:
                 future, url = task
 
                 try:
-                    browser = await self.browser(playwright)
-                    context = await browser.new_context()
-                    await context.route("**/*", block)
+                    async with self._browser_lock:
+                        browser = await self.browser(playwright)
+                        context = await browser.new_context()
+                        await context.route("**/*", block)
 
-                    page = await context.new_page()
-                    response = await page.goto(url, wait_until="domcontentloaded")
-                    if not response.ok:
-                        raise ConnectionError(response.status_text)
+                        page = await context.new_page()
+                        response = await page.goto(url, wait_until="domcontentloaded")
+                        if not response.ok:
+                            raise ConnectionError(response.status_text)
 
-                    result = await page.content()
-                    future.set_result(result)
+                        result = await page.content()
+                        future.set_result(result)
 
-                    await page.close()
-                    await context.close()
+                        await page.close()
+                        await context.close()
 
                     self._requests += 1
 
@@ -124,8 +133,10 @@ class Browser:
 
             if self._restart_task:
                 self._restart_task.cancel()
-            await self._browser.close()
-            self._browser = None
+
+            if self._browser:
+                await self._browser.close()
+                self._browser = None
 
     async def get(self, url):
         future = Future()
