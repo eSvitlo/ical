@@ -23,10 +23,9 @@ SHUTDOWN_SIGNAL = object()
 
 
 class Browser:
-    MAX_INACTIVITY = 30
-    MAX_REQUESTS = 50
-
-    def __init__(self):
+    def __init__(self, max_inactivity=None, max_requests=None):
+        self.max_inactivity = max_inactivity or 30
+        self.max_requests = max_requests or 50
         self._task_queue = Queue()
         self._browser = None
         self._browser_lock = Lock()
@@ -34,7 +33,7 @@ class Browser:
         self._restart_task = None
 
     async def _restart(self, browser):
-        await sleep(self.MAX_INACTIVITY)
+        await sleep(self.max_inactivity)
 
         async with self._browser_lock:
             if self._browser is browser:
@@ -50,7 +49,7 @@ class Browser:
         if (
             self._browser is None
             or not self._browser.is_connected()
-            or self._requests >= self.MAX_REQUESTS
+            or self._requests >= self.max_requests
         ):
             if self._browser:
                 await self._browser.close()

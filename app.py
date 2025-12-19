@@ -47,9 +47,14 @@ if redis_url := os.getenv("REDIS_URL"):
 else:
     cache_kwargs = {"cache": Cache.MEMORY}
 
+BROWSER_MAX_INACTIVITY = os.getenv("BROWSER_MAX_INACTIVITY")
+BROWSER_MAX_REQUESTS = os.getenv("BROWSER_MAX_REQUESTS")
 
 yasno_blackout = YasnoBlackout()
-browser = Browser()
+browser = Browser(
+    max_inactivity=BROWSER_MAX_INACTIVITY,
+    max_requests=BROWSER_MAX_REQUESTS,
+)
 dtek_shutdowns = DtekShutdowns(browser, cache_kwargs)
 
 
