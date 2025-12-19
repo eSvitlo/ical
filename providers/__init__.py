@@ -1,6 +1,7 @@
 from asyncio import Future, Lock, Queue, QueueShutDown, create_task, sleep
 from enum import StrEnum
 
+from playwright.async_api import Browser as PlaywrightBrowser
 from playwright.async_api import async_playwright
 
 
@@ -27,7 +28,7 @@ class Browser:
         self.max_inactivity = max_inactivity or 30
         self.max_requests = max_requests or 50
         self._task_queue = Queue()
-        self._browser = None
+        self._browser: PlaywrightBrowser | None = None
         self._browser_lock = Lock()
         self._requests = 0
         self._restart_task = None
@@ -108,30 +109,29 @@ class Browser:
                 try:
                     async with self._browser_lock:
                         browser = await self.browser(playwright)
-                        context = await browser.new_context()
-                        await context.route("**/*", block)
+                        async with await browser.new_context() as context:
+                            await context.route("**/*", block)
 
-                        page = await context.new_page()
-                        response = await page.goto(url, wait_until="domcontentloaded")
-                        if not response.ok:
-                            raise ConnectionError(response.status_text)
+                            async with await context.new_page() as page:
+                                response = await page.goto(
+                                    url, wait_until="domcontentloaded"
+                                )
+                                if not response.ok:
+                                    raise ConnectionError(response.status_text)
 
-                        result = await page.content()
-                        future.set_result(result)
-
-                        await page.close()
-                        await context.close()
-
-                    self._requests += 1
+                                result = await page.content()
+                                future.set_result(result)
 
                 except Exception as e:
                     future.set_exception(e)
 
                 finally:
+                    self._requests += 1
                     self._task_queue.task_done()
 
             if self._restart_task:
                 self._restart_task.cancel()
+                await self._restart_task
 
             if self._browser:
                 await self._browser.close()
