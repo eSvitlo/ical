@@ -182,7 +182,7 @@ async def startup():
 
 @app.after_serving
 async def shutdown():
-    browser.shutdown()
+    await browser.shutdown()
 
 
 if __name__ == "__main__":

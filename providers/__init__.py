@@ -1,8 +1,18 @@
-from asyncio import Future, Lock, Queue, QueueShutDown, create_task, sleep
+from asyncio import (
+    CancelledError,
+    Future,
+    Lock,
+    Queue,
+    QueueShutDown,
+    create_task,
+    sleep,
+)
+from contextlib import suppress
 from enum import StrEnum
 
 from playwright.async_api import Browser as PlaywrightBrowser
-from playwright.async_api import async_playwright
+from playwright.async_api import BrowserContext, async_playwright
+from playwright.async_api import Error as PlaywrightError
 
 
 class Group(StrEnum):
@@ -35,7 +45,8 @@ class Browser:
 
         async with self._browser_lock:
             if self._browser is browser:
-                await self._browser.close()
+                with suppress(Exception):
+                    await self._browser.close()
                 self._browser = None
 
     def schedule_restart(self):
@@ -43,15 +54,14 @@ class Browser:
             self._restart_task.cancel()
         self._restart_task = create_task(self._restart(self._browser))
 
-    async def browser(self, playwright):
-        if (
-            self._browser is None
-            or not self._browser.is_connected()
-            or self._requests >= self.max_requests
-        ):
-            if self._browser:
-                await self._browser.close()
+    async def browser(self, playwright) -> PlaywrightBrowser:
+        if self._browser is not None:
+            if not self._browser.is_connected() or self._requests >= self.max_requests:
+                with suppress(Exception):
+                    await self._browser.close()
+                self._browser = None
 
+        if self._browser is None:
             self._browser = await playwright.chromium.launch(
                 headless=True,
                 args=[
@@ -99,12 +109,18 @@ class Browser:
                     async with self._browser_lock:
                         browser = await self.browser(playwright)
                         async with await browser.new_context() as context:
+                            context: BrowserContext
                             await context.route("**/*", block)
 
                             async with await context.new_page() as page:
-                                response = await page.goto(
-                                    url, wait_until="domcontentloaded"
-                                )
+                                try:
+                                    response = await page.goto(
+                                        url,
+                                        wait_until="domcontentloaded",
+                                    )
+                                except (CancelledError, PlaywrightError):
+                                    break
+
                                 if not response.ok:
                                     raise ConnectionError(response.status_text)
 
@@ -120,10 +136,12 @@ class Browser:
 
             if self._restart_task:
                 self._restart_task.cancel()
-                await self._restart_task
+                with suppress(CancelledError):
+                    await self._restart_task
 
             if self._browser:
-                await self._browser.close()
+                with suppress(Exception):
+                    await self._browser.close()
                 self._browser = None
 
     async def get(self, url):
@@ -134,5 +152,6 @@ class Browser:
 
         return future.result()
 
-    def shutdown(self):
+    async def shutdown(self):
         self._task_queue.shutdown()
+        await self._task_queue.join()
