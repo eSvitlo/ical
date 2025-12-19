@@ -23,7 +23,7 @@ SHUTDOWN_SIGNAL = object()
 
 
 class Browser:
-    MAX_INACTIVITY = 60
+    MAX_INACTIVITY = 30
     MAX_REQUESTS = 50
 
     def __init__(self):
