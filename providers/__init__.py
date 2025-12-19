@@ -50,7 +50,7 @@ class Browser:
         if (
             self._browser is None
             or not self._browser.is_connected()
-            or self._requests > self.MAX_REQUESTS
+            or self._requests >= self.MAX_REQUESTS
         ):
             if self._browser:
                 await self._browser.close()
