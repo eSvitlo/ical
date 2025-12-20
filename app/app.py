@@ -2,8 +2,6 @@ import asyncio
 import logging
 import os
 from contextlib import suppress
-from datetime import datetime
-from typing import Protocol
 
 from aiocache import Cache, cached
 from aiocache.serializers import PickleSerializer
@@ -18,11 +16,11 @@ from quart import (
 )
 from redis.connection import parse_url
 
-from gcal import get_gcals
-from logger import HealthCheckFilter
-from providers import Browser, Group
-from providers.dtek import DtekNetwork, DtekShutdowns
-from providers.yasno import YasnoBlackout
+from .gcal import get_gcals
+from .logger import HealthCheckFilter
+from .providers import Browser, Group, Slots
+from .providers.dtek import DtekNetwork, DtekShutdowns
+from .providers.yasno import YasnoBlackout
 
 logging.getLogger("hypercorn.access").addFilter(HealthCheckFilter())
 
@@ -56,12 +54,6 @@ browser = Browser(
     max_requests=BROWSER_MAX_REQUESTS,
 )
 dtek_shutdowns = DtekShutdowns(browser, cache_kwargs)
-
-
-class Slots(Protocol):
-    title: str
-    dt_start: datetime
-    dt_end: datetime
 
 
 @app.route("/favicon.ico")
@@ -183,7 +175,3 @@ async def startup():
 @app.after_serving
 async def shutdown():
     await browser.shutdown()
-
-
-if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080, debug=True)

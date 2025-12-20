@@ -2,8 +2,6 @@ FROM python:3.14-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /app
-
 RUN \
     apt-get update && \
     apt-get install -y dumb-init && \
@@ -19,7 +17,7 @@ RUN \
     rm -rf /var/lib/apt/lists/* && \
     :
 
-COPY . .
+COPY app app
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["sh", "-c", "exec \

@@ -7,7 +7,7 @@ from aiohttp import ClientSession
 from pydantic import BaseModel, TypeAdapter
 from quart import url_for
 
-from providers import Group
+from . import Group
 
 
 class Dso(BaseModel):

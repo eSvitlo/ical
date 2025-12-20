@@ -8,7 +8,7 @@ from operator import not_
 
 from aiocache import cached
 
-from providers import Browser, Group
+from . import Browser, Group
 
 GROUP_MAP = {
     "GPV1.1": Group.G1_1,

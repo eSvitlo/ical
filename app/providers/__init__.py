@@ -8,7 +8,9 @@ from asyncio import (
     sleep,
 )
 from contextlib import suppress
+from datetime import datetime
 from enum import StrEnum
+from typing import Protocol
 
 from playwright.async_api import Browser as PlaywrightBrowser
 from playwright.async_api import Error as PlaywrightError
@@ -28,6 +30,12 @@ class Group(StrEnum):
     G5_2 = "5.2"
     G6_1 = "6.1"
     G6_2 = "6.2"
+
+
+class Slots(Protocol):
+    title: str
+    dt_start: datetime
+    dt_end: datetime
 
 
 class Browser:
