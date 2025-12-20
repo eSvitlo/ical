@@ -164,5 +164,7 @@ class YasnoBlackout:
 
 
 if __name__ == "__main__":
+    from pprint import pprint
+
     yb = YasnoBlackout()
-    print(asyncio.run(yb.planned_outages(region_id=25, dso_id=902)))
+    pprint(asyncio.run(yb.planned_outages(region_id=25, dso_id=902)))

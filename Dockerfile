@@ -23,7 +23,7 @@ ENTRYPOINT ["dumb-init", "--"]
 CMD ["sh", "-c", "exec \
     uv run \
     hypercorn \
-    app:app \
+    app.main:app \
     --bind 0.0.0.0:${PORT:-8000} \
     --access-log - \
     --max-requests ${HYPERCORN_MAX_REQUESTS:-500} \
