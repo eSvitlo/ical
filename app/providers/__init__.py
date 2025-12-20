@@ -94,21 +94,24 @@ class Browser:
         return self._browser
 
     async def run(self):
-        playwright = await async_playwright().start()
-        try:
-            await self._run(playwright)
-        finally:
-            if self._restart_task:
-                self._restart_task.cancel()
-                with suppress(CancelledError):
-                    await self._restart_task
+        while True:
+            playwright = await async_playwright().start()
+            try:
+                await self._run(playwright)
+            except CancelledError:
+                break
+            finally:
+                if self._restart_task:
+                    self._restart_task.cancel()
+                    with suppress(CancelledError):
+                        await self._restart_task
 
-            if self._browser:
-                with suppress(Exception):
-                    await self._browser.close()
-                self._browser = None
+                if self._browser:
+                    with suppress(Exception):
+                        await self._browser.close()
+                    self._browser = None
 
-            await playwright.stop()
+                await playwright.stop()
 
     async def _run(self, playwright: Playwright):
         async def block(route):
@@ -126,7 +129,8 @@ class Browser:
             try:
                 future, url = await self._task_queue.get()
             except QueueShutDown:
-                break
+                self._task_queue.task_done()
+                raise CancelledError
 
             try:
                 async with self._browser_lock:
@@ -135,19 +139,19 @@ class Browser:
                         await context.route("**/*", block)
 
                         async with await context.new_page() as page:
-                            try:
-                                response = await page.goto(
-                                    url,
-                                    wait_until="domcontentloaded",
-                                )
-                            except (CancelledError, PlaywrightError):
-                                break
-
+                            response = await page.goto(
+                                url,
+                                wait_until="domcontentloaded",
+                            )
                             if not response.ok:
                                 raise ConnectionError(response.status_text)
 
                             result = await page.content()
                             future.set_result(result)
+
+            except PlaywrightError as e:
+                future.set_exception(e)
+                break
 
             except Exception as e:
                 future.set_exception(e)
