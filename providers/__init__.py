@@ -11,8 +11,8 @@ from contextlib import suppress
 from enum import StrEnum
 
 from playwright.async_api import Browser as PlaywrightBrowser
-from playwright.async_api import BrowserContext, async_playwright
 from playwright.async_api import Error as PlaywrightError
+from playwright.async_api import Playwright, async_playwright
 
 
 class Group(StrEnum):
@@ -86,54 +86,10 @@ class Browser:
         return self._browser
 
     async def run(self):
-        async with async_playwright() as playwright:
-
-            async def block(route):
-                if route.request.resource_type in {
-                    "font",
-                    "image",
-                    "media",
-                    "stylesheet",
-                }:
-                    await route.abort()
-                else:
-                    await route.continue_()
-
-            while True:
-                try:
-                    future, url = await self._task_queue.get()
-                except QueueShutDown:
-                    break
-
-                try:
-                    async with self._browser_lock:
-                        browser = await self.browser(playwright)
-                        async with await browser.new_context() as context:
-                            context: BrowserContext
-                            await context.route("**/*", block)
-
-                            async with await context.new_page() as page:
-                                try:
-                                    response = await page.goto(
-                                        url,
-                                        wait_until="domcontentloaded",
-                                    )
-                                except (CancelledError, PlaywrightError):
-                                    break
-
-                                if not response.ok:
-                                    raise ConnectionError(response.status_text)
-
-                                result = await page.content()
-                                future.set_result(result)
-
-                except Exception as e:
-                    future.set_exception(e)
-
-                finally:
-                    self._requests += 1
-                    self._task_queue.task_done()
-
+        playwright = await async_playwright().start()
+        try:
+            await self._run(playwright)
+        finally:
             if self._restart_task:
                 self._restart_task.cancel()
                 with suppress(CancelledError):
@@ -143,6 +99,54 @@ class Browser:
                 with suppress(Exception):
                     await self._browser.close()
                 self._browser = None
+
+            await playwright.stop()
+
+    async def _run(self, playwright: Playwright):
+        async def block(route):
+            if route.request.resource_type in {
+                "font",
+                "image",
+                "media",
+                "stylesheet",
+            }:
+                await route.abort()
+            else:
+                await route.continue_()
+
+        while True:
+            try:
+                future, url = await self._task_queue.get()
+            except QueueShutDown:
+                break
+
+            try:
+                async with self._browser_lock:
+                    browser = await self.browser(playwright)
+                    async with await browser.new_context() as context:
+                        await context.route("**/*", block)
+
+                        async with await context.new_page() as page:
+                            try:
+                                response = await page.goto(
+                                    url,
+                                    wait_until="domcontentloaded",
+                                )
+                            except (CancelledError, PlaywrightError):
+                                break
+
+                            if not response.ok:
+                                raise ConnectionError(response.status_text)
+
+                            result = await page.content()
+                            future.set_result(result)
+
+            except Exception as e:
+                future.set_exception(e)
+
+            finally:
+                self._requests += 1
+                self._task_queue.task_done()
 
     async def get(self, url):
         future = Future()
