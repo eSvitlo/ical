@@ -1,5 +1,7 @@
+/.github/
 /.idea/
 /.venv/
+/.dockerignore
 /.gitignore
 /.pre-commit-config.yaml
 /Dockerfile

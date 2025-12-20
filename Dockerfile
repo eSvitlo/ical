@@ -11,13 +11,15 @@ RUN \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/
 
-COPY . .
-
 RUN \
-    uv sync --locked --no-dev && \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    uv sync --locked --no-cache --no-dev && \
     uv run playwright install --with-deps chromium && \
     rm -rf /var/lib/apt/lists/* && \
     :
+
+COPY . .
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["sh", "-c", "exec \
