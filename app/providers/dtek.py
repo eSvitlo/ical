@@ -39,10 +39,6 @@ class Slot:
     title: str = "Заплановане відключення світла"
 
 
-class EmptyDataError(LookupError):
-    pass
-
-
 class DtekShutdownBase:
     URL: str
     PATTERN: re.Pattern = re.compile(r"DisconSchedule\.fact\s*=\s*(\{.*})")
@@ -101,7 +97,7 @@ class DtekShutdownBase:
     async def planned_outages(self):
         data = await self._get()
         if not data:
-            raise EmptyDataError
+            return {}
 
         slots = {}
         for date, groups in data.items():

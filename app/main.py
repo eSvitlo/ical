@@ -19,7 +19,7 @@ from redis.connection import parse_url
 from .gcal import get_gcals
 from .logger import HealthCheckFilter
 from .providers import Browser, Group, Slots
-from .providers.dtek import DtekNetwork, DtekShutdowns, EmptyDataError
+from .providers.dtek import DtekNetwork, DtekShutdowns
 from .providers.yasno import YasnoBlackout
 
 logging.getLogger("hypercorn.access").addFilter(HealthCheckFilter())
@@ -114,8 +114,6 @@ async def dtek(network: str, group: str) -> Response:
         slots = planned_outages[group]
     except TimeoutError:
         return Response(status=504)
-    except EmptyDataError:
-        return Response(status=204)
     except (IOError, KeyError, ValueError) as e:
         app.logger.exception(e)
         return Response(status=204)
