@@ -115,7 +115,7 @@ async def dtek(network: str, group: str) -> Response:
     except TimeoutError:
         return Response(status=504)
     except EmptyDataError:
-        slots = []
+        return Response(status=204)
     except (IOError, KeyError, ValueError) as e:
         app.logger.exception(e)
         return Response(status=204)
