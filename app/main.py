@@ -111,7 +111,7 @@ async def dtek(network: str, group: str) -> Response:
     try:
         network = DtekNetwork(network)
         planned_outages = await dtek_shutdowns.planned_outages(network=network)
-        slots = planned_outages[group]
+        slots = planned_outages[group] if planned_outages else []
     except TimeoutError:
         return Response(status=504)
     except (IOError, KeyError, ValueError) as e:
