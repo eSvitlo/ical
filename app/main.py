@@ -10,11 +10,9 @@ from icalendar import Calendar, Event
 from quart import (
     Quart,
     Response,
-    redirect,
     render_template,
     request,
     send_from_directory,
-    url_for,
 )
 from redis.connection import parse_url
 
@@ -106,7 +104,7 @@ async def yasno(region: int, dso: int, group: str) -> Response:
 
     with suppress(KeyError):
         dtek_network = mapping[region][dso]
-        return redirect(url_for("dtek", network=dtek_network, group=group))
+        return await dtek(network=dtek_network, group=group)
 
     try:
         planned_outages = await yasno_blackout.planned_outages(
