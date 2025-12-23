@@ -105,6 +105,8 @@ class Browser:
                 await self._run(playwright)
             except CancelledError:
                 break
+            except Exception:
+                pass
             finally:
                 if self._restart_task:
                     self._restart_task.cancel()
