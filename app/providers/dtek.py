@@ -2,12 +2,13 @@ import asyncio
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from enum import StrEnum, auto
+from zoneinfo import ZoneInfo
 
 from aiocache import cached
 
-from . import Browser, Group
+from . import Browser, EventTitle, Group
 
 GROUP_MAP = {
     "GPV1.1": Group.G1_1,
@@ -36,7 +37,11 @@ class State(StrEnum):
 class Slot:
     dt_start: datetime
     dt_end: datetime
-    title: str = "Заплановане відключення світла"
+    title: str = EventTitle.SCHEDULED
+
+
+class EmergencyShutdown(Exception):
+    pass
 
 
 class DtekShutdownBase:
@@ -49,6 +54,8 @@ class DtekShutdownBase:
     async def _get(self):
         html = await self.browser.get(self.URL)
 
+        if "екстрені відключення електроенергії" in html:
+            raise EmergencyShutdown
         if match := self.PATTERN.search(html):
             data = match.group(1)
             return json.loads(data)["data"]
@@ -95,13 +102,25 @@ class DtekShutdownBase:
         return joined
 
     async def planned_outages(self):
-        data = await self._get()
+        try:
+            data = await self._get()
+        except EmergencyShutdown:
+            zone_info = ZoneInfo("Europe/Kyiv")
+            today = datetime.combine(date.today(), time(), tzinfo=zone_info)
+            after_tomorrow = today + timedelta(days=2)
+            slot = Slot(
+                dt_start=today,
+                dt_end=after_tomorrow,
+                title=EventTitle.EMERGENCY,
+            )
+            return {group: [slot] for group in Group}
+
         if not data:
             return {}
 
         slots = {}
-        for date, groups in data.items():
-            dt = datetime.fromtimestamp(int(date), tz=timezone.utc)
+        for timestamp, groups in data.items():
+            dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
             for g, days in groups.items():
                 group = GROUP_MAP[g]
                 slots[group] = self._join_slots(

@@ -7,7 +7,7 @@ from aiohttp import ClientSession
 from pydantic import BaseModel, TypeAdapter
 from quart import url_for
 
-from . import Group
+from . import EventTitle, Group
 
 
 class Dso(BaseModel):
@@ -73,9 +73,9 @@ class Slot(BaseModel):
     def title(self) -> str:
         match self.day_status:
             case DayStatus.SCHEDULE_APPLIES:
-                return "Заплановане відключення світла"
+                return EventTitle.SCHEDULED
             case DayStatus.EMERGENCY_SHUTDOWNS:
-                return "🚨 Екстрені відключення світла"
+                return EventTitle.EMERGENCY
             case DayStatus.WAITING_FOR_SCHEDULE:
                 return "Імовірне відключення світла"
 

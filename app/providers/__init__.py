@@ -32,6 +32,11 @@ class Group(StrEnum):
     G6_2 = "6.2"
 
 
+class EventTitle(StrEnum):
+    SCHEDULED = "Заплановане відключення світла"
+    EMERGENCY = "🚨 Екстрені відключення світла"
+
+
 class Slots(Protocol):
     title: str
     dt_start: datetime
