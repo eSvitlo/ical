@@ -8,6 +8,7 @@ from enum import StrEnum, auto
 from zoneinfo import ZoneInfo
 
 from aiocache import cached
+from bs4 import BeautifulSoup
 from quart import url_for
 
 from . import Browser, EventTitle, Group
@@ -58,7 +59,9 @@ class DtekShutdownBase:
     async def _get(self):
         html = await self.browser.get(self.URL)
 
-        if "екстрені відключення електроенергії" in html:
+        bs = BeautifulSoup(html, "html.parser")
+        text = bs.get_text(separator=" ", strip=True)
+        if "екстрені відключення електроенергії" in text:
             raise EmergencyShutdown
         if match := self.PATTERN.search(html):
             data = match.group(1)
