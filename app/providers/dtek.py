@@ -1,6 +1,4 @@
 import asyncio
-import json
-import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta, timezone
@@ -9,9 +7,10 @@ from zoneinfo import ZoneInfo
 
 from aiocache import cached
 from bs4 import BeautifulSoup
+from playwright.async_api import Page
 from quart import url_for
 
-from . import Browser, EventTitle, Group
+from . import Browser, BrowserJobBase, EventTitle, Group
 
 GROUP_MAP = {
     "GPV1.1": Group.G1_1,
@@ -47,27 +46,36 @@ class EmergencyShutdown(Exception):
     pass
 
 
-class DtekShutdownBase:
-    REGION: str
-    NAME: str
-    URL: str
-    PATTERN: re.Pattern = re.compile(r"DisconSchedule\.fact\s*=\s*(\{.*})")
+class BrowserJob(BrowserJobBase):
+    WAIT_FUNCTION = "() => DisconSchedule && DisconSchedule.fact"
+    EVALUATE_FUNCTION = "() => DisconSchedule.fact"
 
-    def __init__(self, browser):
-        self.browser = browser
-
-    async def _get(self):
-        html = await self.browser.get(self.URL)
+    async def execute(self, page: Page):
+        html = await page.content()
 
         bs = BeautifulSoup(html, "html.parser")
         text = bs.get_text(separator=" ", strip=True)
         if "екстрені відключення електроенергії" in text:
             raise EmergencyShutdown
-        if match := self.PATTERN.search(html):
-            data = match.group(1)
-            return json.loads(data)["data"]
+
+        await page.wait_for_function(self.WAIT_FUNCTION)
+
+        if fact := await page.evaluate(self.EVALUATE_FUNCTION):
+            return fact["data"]
 
         raise ValueError("No shutdown schedule found")
+
+
+class DtekShutdownBase:
+    REGION: str
+    NAME: str
+    URL: str
+
+    def __init__(self, browser):
+        self.browser = browser
+
+    async def _get(self):
+        return await self.browser.execute(BrowserJob(self.URL))
 
     @staticmethod
     def _parse_group(dt: datetime, data) -> list[Slot]:

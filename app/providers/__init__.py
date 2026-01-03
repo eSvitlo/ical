@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from asyncio import (
     CancelledError,
     Future,
@@ -8,13 +9,14 @@ from asyncio import (
     sleep,
 )
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Protocol
+from typing import Any, Protocol
 
 from playwright.async_api import Browser as PlaywrightBrowser
 from playwright.async_api import Error as PlaywrightError
-from playwright.async_api import Playwright, async_playwright
+from playwright.async_api import Page, Playwright, async_playwright
 
 
 class Group(StrEnum):
@@ -41,6 +43,35 @@ class Slots(Protocol):
     title: str
     dt_start: datetime
     dt_end: datetime
+
+
+@dataclass
+class BrowserJobBase(ABC):
+    url: str
+    _future: Future = field(init=False, default_factory=Future)
+
+    @abstractmethod
+    async def execute(self, page: Page) -> Any:
+        raise NotImplementedError
+
+    @property
+    def result(self):
+        return self._future.result()
+
+    @result.setter
+    def result(self, value):
+        self._future.set_result(value)
+
+    @property
+    def exception(self):
+        return self._future.exception()
+
+    @exception.setter
+    def exception(self, value):
+        self._future.set_exception(value)
+
+    def __await__(self):
+        return self._future.__await__()
 
 
 class Browser:
@@ -134,7 +165,7 @@ class Browser:
 
         while True:
             try:
-                future, url = await self._task_queue.get()
+                job = await self._task_queue.get()
             except QueueShutDown:
                 self._task_queue.task_done()
                 raise CancelledError
@@ -147,33 +178,30 @@ class Browser:
 
                         async with await context.new_page() as page:
                             response = await page.goto(
-                                url,
+                                job.url,
                                 wait_until="domcontentloaded",
                             )
                             if not response.ok:
                                 raise ConnectionError(response.status_text)
 
-                            result = await page.content()
-                            future.set_result(result)
+                            result = await job.execute(page)
+                            job.result = result
 
             except PlaywrightError as e:
-                future.set_exception(e)
+                job.exception = e
                 break
 
             except Exception as e:
-                future.set_exception(e)
+                job.exception = e
 
             finally:
                 self._requests += 1
                 self._task_queue.task_done()
 
-    async def get(self, url):
-        future = Future()
-        self._task_queue.put_nowait((future, url))
-
-        await future
-
-        return future.result()
+    async def execute(self, job):
+        self._task_queue.put_nowait(job)
+        await job
+        return job.result
 
     async def shutdown(self):
         self._task_queue.shutdown()
