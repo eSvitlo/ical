@@ -53,7 +53,7 @@ class BrowserJob(BrowserJobBase):
     async def execute(self, page: Page):
         html = await page.content()
 
-        bs = BeautifulSoup(html, "html.parser")
+        bs = BeautifulSoup(html, "lxml")
         text = bs.get_text(separator=" ", strip=True)
         if "екстрені відключення електроенергії" in text:
             raise EmergencyShutdown
