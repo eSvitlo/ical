@@ -47,7 +47,7 @@ class EmergencyShutdown(Exception):
 
 
 class BrowserJob(BrowserJobBase):
-    WAIT_FUNCTION = "() => DisconSchedule && DisconSchedule.fact"
+    WAIT_FUNCTION = "() => typeof DisconSchedule !== 'undefined' && DisconSchedule.fact"
     EVALUATE_FUNCTION = "() => DisconSchedule.fact"
 
     async def execute(self, page: Page):
