@@ -55,7 +55,7 @@ class BrowserJob(BrowserJobBase):
 
         bs = BeautifulSoup(html, "lxml")
         text = bs.get_text(separator=" ", strip=True)
-        if "екстрені відключення електроенергії" in text:
+        if "екстрені відключення" in text:
             raise EmergencyShutdown
 
         await page.wait_for_function(self.WAIT_FUNCTION)
