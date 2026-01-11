@@ -117,7 +117,9 @@ class DtekShutdownBase:
         slots = defaultdict(list)
         if emergency:
             zone_info = ZoneInfo("Europe/Kyiv")
-            today = datetime.combine(datetime.now(zone_info).date(), time())
+            today = datetime.combine(
+                datetime.now(zone_info).date(), time(), tzinfo=zone_info
+            )
             after_tomorrow = today + timedelta(days=2)
             slot = Slot(
                 dt_start=today,
