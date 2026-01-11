@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import datetime, time, timedelta, timezone
 from enum import StrEnum, auto
 from zoneinfo import ZoneInfo
 
@@ -42,10 +42,6 @@ class Slot:
     title: str = EventTitle.SCHEDULED
 
 
-class EmergencyShutdown(Exception):
-    pass
-
-
 class BrowserJob(BrowserJobBase):
     WAIT_FUNCTION = "() => typeof DisconSchedule !== 'undefined' && DisconSchedule.fact"
     EVALUATE_FUNCTION = "() => DisconSchedule.fact"
@@ -55,13 +51,12 @@ class BrowserJob(BrowserJobBase):
 
         bs = BeautifulSoup(html, "lxml")
         text = bs.get_text(separator=" ", strip=True)
-        if "екстрені відключення" in text:
-            raise EmergencyShutdown
+        emergency = "екстрені відключення" in text
 
         await page.wait_for_function(self.WAIT_FUNCTION)
 
         if fact := await page.evaluate(self.EVALUATE_FUNCTION):
-            return fact["data"]
+            return fact["data"], emergency
 
         raise ValueError("No shutdown schedule found")
 
@@ -117,32 +112,30 @@ class DtekShutdownBase:
         return joined
 
     async def planned_outages(self):
-        try:
-            data = await self._get()
-        except EmergencyShutdown:
+        outages, emergency = await self._get()
+
+        slots = defaultdict(list)
+        if emergency:
             zone_info = ZoneInfo("Europe/Kyiv")
-            today = datetime.combine(date.today(), time(), tzinfo=zone_info)
+            today = datetime.combine(datetime.now(zone_info).date(), time())
             after_tomorrow = today + timedelta(days=2)
             slot = Slot(
                 dt_start=today,
                 dt_end=after_tomorrow,
                 title=EventTitle.EMERGENCY,
             )
-            return {group: [slot] for group in Group}
+            for group in Group:
+                slots[group].append(slot)
 
-        if not data:
-            return {}
+        outages = outages or {}
 
-        slots = {}
-        for timestamp, groups in data.items():
+        for timestamp, groups in outages.items():
             dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
             for g, days in groups.items():
                 group = GROUP_MAP[g]
-                slots[group] = self._join_slots(
-                    slots.get(group, []) + self._parse_group(dt, days)
-                )
+                slots[group].extend(self._join_slots(self._parse_group(dt, days)))
 
-        return slots
+        return dict(slots)
 
 
 class DemDtekShutdown(DtekShutdownBase):
