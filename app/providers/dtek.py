@@ -135,8 +135,9 @@ class DtekShutdownBase:
             dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
             for g, days in groups.items():
                 group = GROUP_MAP[g]
-                slots[group].extend(self._join_slots(self._parse_group(dt, days)))
-
+                slots[group] = self._join_slots(
+                    slots.get(group, []) + self._parse_group(dt, days)
+                )
         return dict(slots)
 
 
