@@ -132,6 +132,9 @@ class DtekShutdownBase:
         outages = outages or {}
 
         for timestamp, groups in outages.items():
+            if len(GROUP_MAP) != len(groups):
+                continue
+
             dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
             for g, days in groups.items():
                 group = GROUP_MAP[g]
