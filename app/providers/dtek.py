@@ -27,6 +27,14 @@ GROUP_MAP = {
     "GPV6.2": Group.G6_2,
 }
 
+# Kyiv now publishes its schedules as GPV1.1 through GPV60.2 instead of the
+# former twelve GPV groups.  Calendar URLs use the public part after "GPV".
+KYIV_GROUP_MAP = {
+    f"GPV{number}.{subgroup}": f"{number}.{subgroup}"
+    for number in range(1, 61)
+    for subgroup in range(1, 3)
+}
+
 
 class State(StrEnum):
     NO = auto()
@@ -65,6 +73,7 @@ class DtekShutdownBase:
     REGION: str
     NAME: str
     URL: str
+    GROUP_MAP = GROUP_MAP
 
     def __init__(self, browser):
         self.browser = browser
@@ -132,16 +141,21 @@ class DtekShutdownBase:
         outages = outages or {}
 
         for timestamp, groups in outages.items():
-            if len(GROUP_MAP) != len(groups):
+            # A provider can omit groups that have no schedule for a day, but
+            # do not try to parse an unrecognised source schema.
+            if not groups.keys() <= self.GROUP_MAP.keys():
                 continue
 
             dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
             for g, days in groups.items():
-                group = GROUP_MAP[g]
+                group = self.GROUP_MAP[g]
                 slots[group] = self._join_slots(
                     slots.get(group, []) + self._parse_group(dt, days)
                 )
         return dict(slots)
+
+    def groups(self):
+        return self.GROUP_MAP.values()
 
 
 class DemDtekShutdown(DtekShutdownBase):
@@ -160,6 +174,7 @@ class KemDtekShutdown(DtekShutdownBase):
     REGION = "Київ"
     NAME = "ПрАТ «ДТЕК Київські електромережі»"
     URL = "https://www.dtek-kem.com.ua/ua/shutdowns"
+    GROUP_MAP = KYIV_GROUP_MAP
 
 
 class KremDtekShutdown(DtekShutdownBase):
@@ -211,7 +226,9 @@ class DtekShutdowns:
         networks = defaultdict(dict)
         for network, shutdown in self.map.items():
             networks[shutdown.REGION] = {
-                shutdown.NAME: {group.value: network.link(group) for group in Group}
+                shutdown.NAME: {
+                    group: network.link(group) for group in shutdown.groups()
+                }
             }
         return dict(networks)
 

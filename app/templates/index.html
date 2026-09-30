@@ -87,6 +87,7 @@ const regionSelect = document.getElementById('region');
 const dsoSelect = document.getElementById('dso');
 const groupSelect = document.getElementById('group');
 const linkInput = document.getElementById('link');
+const groupCollator = new Intl.Collator(undefined, { numeric: true });
 
 regionSelect.addEventListener('change', () => {
     const region = regionSelect.value;
@@ -117,7 +118,7 @@ dsoSelect.addEventListener('change', () => {
     linkInput.disabled = true;
 
     if(dso) {
-        Object.keys(data[region][dso]).forEach(group => {
+        Object.keys(data[region][dso]).sort(groupCollator.compare).forEach(group => {
             const option = document.createElement('option');
             option.value = group;
             option.textContent = group;
