@@ -1,9 +1,8 @@
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from enum import StrEnum, auto
-from zoneinfo import ZoneInfo
 
 from aiocache import cached
 from bs4 import BeautifulSoup
@@ -120,19 +119,19 @@ class DtekShutdownBase:
         outages, emergency = await self._get()
 
         slots = defaultdict(list)
-        if emergency:
-            zone_info = ZoneInfo("Europe/Kyiv")
-            today = datetime.combine(
-                datetime.now(zone_info).date(), time(), tzinfo=zone_info
-            )
-            after_tomorrow = today + timedelta(days=2)
-            slot = Slot(
-                dt_start=today,
-                dt_end=after_tomorrow,
-                title=EventTitle.EMERGENCY,
-            )
-            for group in self.groups():
-                slots[group].append(slot)
+        # if emergency:
+        #     zone_info = ZoneInfo("Europe/Kyiv")
+        #     today = datetime.combine(
+        #         datetime.now(zone_info).date(), time(), tzinfo=zone_info
+        #     )
+        #     after_tomorrow = today + timedelta(days=2)
+        #     slot = Slot(
+        #         dt_start=today,
+        #         dt_end=after_tomorrow,
+        #         title=EventTitle.EMERGENCY,
+        #     )
+        #     for group in self.groups():
+        #         slots[group].append(slot)
 
         outages = outages or {}
 
