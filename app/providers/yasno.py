@@ -51,6 +51,7 @@ class DayStatus(StrEnum):
     SCHEDULE_APPLIES = "ScheduleApplies"
     WAITING_FOR_SCHEDULE = "WaitingForSchedule"
     EMERGENCY_SHUTDOWNS = "EmergencyShutdowns"
+    NO_OUTAGES = "NoOutages"
 
 
 class Slot(BaseModel):
@@ -87,6 +88,8 @@ class Day(BaseModel):
 
     def get_slots(self) -> list[Slot]:
         match self.status:
+            case DayStatus.NO_OUTAGES:
+                return []
             case DayStatus.SCHEDULE_APPLIES | DayStatus.WAITING_FOR_SCHEDULE:
                 for slot in self.slots:
                     slot.date_start = slot.date_end = self.date
