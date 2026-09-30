@@ -27,13 +27,9 @@ GROUP_MAP = {
     "GPV6.2": Group.G6_2,
 }
 
-# Kyiv now publishes its schedules as GPV1.1 through GPV60.2 instead of the
-# former twelve GPV groups.  Calendar URLs use the public part after "GPV".
-KYIV_GROUP_MAP = {
-    f"GPV{number}.{subgroup}": f"{number}.{subgroup}"
-    for number in range(1, 61)
-    for subgroup in range(1, 3)
-}
+# Kyiv now publishes GPV1.1 through GPV60.1 instead of the former twelve
+# groups. Calendar URLs use the public part after "GPV".
+KYIV_GROUP_MAP = {f"GPV{number}.1": f"{number}.1" for number in range(1, 61)}
 
 
 class State(StrEnum):
@@ -135,7 +131,7 @@ class DtekShutdownBase:
                 dt_end=after_tomorrow,
                 title=EventTitle.EMERGENCY,
             )
-            for group in Group:
+            for group in self.groups():
                 slots[group].append(slot)
 
         outages = outages or {}
