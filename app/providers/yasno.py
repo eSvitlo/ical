@@ -13,7 +13,7 @@ from . import EventTitle, Group
 class Dso(BaseModel):
     id: int
     name: str
-    region: "Region" = None
+    region: Region | None = None
 
     def link(self, group: Group) -> str:
         return url_for("yasno", region=self.region.id, dso=self.id, group=group)
@@ -119,9 +119,11 @@ class YasnoBlackout:
 
     async def _get(self, *path, **params):
         url = "/".join(map(str, (self.URL, *path)))
-        async with ClientSession() as session:
-            async with session.get(url, params=params) as response:
-                return await response.json()
+        async with (
+            ClientSession() as session,
+            session.get(url, params=params) as response,
+        ):
+            return await response.json()
 
     async def regions(self) -> list[Region]:
         return [

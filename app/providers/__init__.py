@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from asyncio import (
     CancelledError,
@@ -17,6 +18,8 @@ from typing import Any, Protocol
 from playwright.async_api import Browser as PlaywrightBrowser
 from playwright.async_api import Error as PlaywrightError
 from playwright.async_api import Page, Playwright, async_playwright
+
+logger = logging.getLogger(__name__)
 
 
 class Group(StrEnum):
@@ -99,11 +102,12 @@ class Browser:
         self._restart_task = create_task(self._restart(self._browser))
 
     async def browser(self, playwright) -> PlaywrightBrowser:
-        if self._browser is not None:
-            if not self._browser.is_connected() or self._requests >= self.max_requests:
-                with suppress(Exception):
-                    await self._browser.close()
-                self._browser = None
+        if self._browser is not None and (
+            not self._browser.is_connected() or self._requests >= self.max_requests
+        ):
+            with suppress(Exception):
+                await self._browser.close()
+            self._browser = None
 
         if self._browser is None:
             self._browser = await playwright.chromium.launch(
@@ -137,7 +141,7 @@ class Browser:
             except CancelledError:
                 break
             except Exception:
-                pass
+                logger.exception("Browser runner failed")
             finally:
                 if self._restart_task:
                     self._restart_task.cancel()
@@ -191,7 +195,7 @@ class Browser:
                 job.exception = e
                 break
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 job.exception = e
 
             finally:

@@ -1,7 +1,7 @@
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta, timezone
+from datetime import UTC, datetime, time, timedelta
 from enum import StrEnum, auto
 from zoneinfo import ZoneInfo
 
@@ -145,7 +145,7 @@ class DtekShutdownBase:
             if not groups.keys() <= self.GROUP_MAP.keys():
                 continue
 
-            dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc)
+            dt = datetime.fromtimestamp(int(timestamp), tz=UTC)
             for g, days in groups.items():
                 group = self.GROUP_MAP[g]
                 slots[group] = self._join_slots(

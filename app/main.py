@@ -75,8 +75,8 @@ async def index() -> Response:
         data = dtek_shutdowns.networks()
     except TimeoutError:
         return Response(status=504)
-    except (IOError, KeyError, TypeError) as e:
-        app.logger.exception(e)
+    except OSError, KeyError, TypeError:
+        app.logger.exception("Unexpected error while serving index")
         return Response(status=204)
 
     yasno_data = {
@@ -113,8 +113,8 @@ async def yasno(region: int, dso: int, group: str) -> Response:
         slots = planned_outages[group]
     except TimeoutError:
         return Response(status=504)
-    except (IOError, KeyError, TypeError) as e:
-        app.logger.exception(e)
+    except OSError, KeyError, TypeError:
+        app.logger.exception("Unexpected error while serving Yasno outage calendar")
         return Response(status=204)
 
     return create_calendar("Yasno Blackout", group, slots)
@@ -129,8 +129,8 @@ async def dtek(network: str, group: str) -> Response:
         slots = planned_outages[group] if planned_outages else []
     except TimeoutError:
         return Response(status=504)
-    except (IOError, KeyError, ValueError) as e:
-        app.logger.exception(e)
+    except OSError, KeyError, ValueError:
+        app.logger.exception("Unexpected error while serving DTEK outage calendar")
         return Response(status=204)
 
     return create_calendar("DTEK Shutdowns", group, slots)
