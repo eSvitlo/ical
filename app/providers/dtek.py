@@ -54,9 +54,8 @@ class BrowserJob(BrowserJobBase):
 
         emergency = any(
             [
-                "<strong>екстрені відключення</strong>" in html,
-                "<strong>аварійне відключення</strong>" in html,
-                "<strong>аварійні відключення</strong>" in html,
+                "<strong>екстрен" in html,
+                "<strong>аварійн" in html,
             ]
         )
 
